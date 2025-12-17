@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Lofi Scenes</title>
+  <title>LofiLand</title>
   <style>
     :root{
       --bg:#05070b;
@@ -11,10 +11,6 @@
       --panel2:#0a0f1a;
       --ink:#cfe8ff;
       --muted:#6aa0c8;
-      --accent:#67d9ff;
-      --accent2:#b06bff;
-      --good:#7dffb2;
-      --warn:#ffe06b;
       --line:rgba(103,217,255,.18);
       --shadow: rgba(0,0,0,.45);
       --radius:16px;
@@ -102,10 +98,7 @@
       font-size: 12px;
     }
     button:hover{ border-color: rgba(103,217,255,.35); }
-    .grid{
-      display:grid;
-      gap:10px;
-    }
+    .grid{ display:grid; gap:10px; }
     .control{
       display:grid;
       grid-template-columns: 120px 1fr 46px;
@@ -174,13 +167,13 @@
             </select>
             <button id="play">Play</button>
             <button id="pause">Pause</button>
-            <button id="shuffle">Shuffle Arrangement</button>
+            <button id="shuffle">Shuffle</button>
           </div>
 
           <div class="hint">
-            <span class="tag">infinite loop</span>
-            <span class="tag">stem mixer</span>
-            <span class="tag">subtle variation</span>
+            <span class="tag">manifest-driven</span>
+            <span class="tag">variants</span>
+            <span class="tag">bar-boundary swaps</span>
             <div style="margin-top:8px">
               If audio does nothing, click Play again. Browsers require a user gesture.
             </div>
@@ -207,52 +200,30 @@
 
     <div class="frame">
       <div class="panel" style="margin:14px;">
-        <h3>How it works</h3>
+        <h3>Pack Manifests</h3>
         <div class="hint">
-          This MVP loads loops for drums, bass, chords, melody, plus rain and room layers.
-          It keeps them in sync, then every few bars it can toggle stems and gently move filters.
-          You can add more loop variants later and it will feel endless.
+          Each pack has <span class="tag">packs/&lt;pack&gt;/manifest.json</span> listing filenames per stem.
+          No numbering rules required.
         </div>
       </div>
 
       <div class="panel" style="margin:0 14px 14px 14px;">
-        <h3>CDN Layout</h3>
-        <div class="hint">
-          Host these paths in your public GitHub repo, served via jsDelivr:
-          <div style="margin-top:8px; white-space:pre-wrap; color: var(--muted);">
-packs/lofi/drums_loop_1.wav
-packs/lofi/bass_loop_1.wav
-packs/lofi/chords_loop_1.wav
-packs/lofi/melody_loop_1.wav
-
-packs/ambient/drums_loop_1.wav
-packs/ambient/bass_loop_1.wav
-packs/ambient/chords_loop_1.wav
-packs/ambient/melody_loop_1.wav
-
-packs/spacehop/drums_loop_1.wav
-packs/spacehop/bass_loop_1.wav
-packs/spacehop/chords_loop_1.wav
-packs/spacehop/melody_loop_1.wav
-
-fx/rain.wav
-fx/cafe_chatter.wav
-fx/vinyl_noise.wav
-          </div>
-        </div>
+        <h3>Status</h3>
+        <div class="hint" id="status">Idle.</div>
       </div>
     </div>
 
     <div class="footer">
       <div class="panel">
-        <h3>Status</h3>
-        <div class="hint" id="status">Idle.</div>
+        <h3>Notes</h3>
+        <div class="hint">
+          Shuffle toggles a simple stem mask and swaps to new variants on the next loop boundary, based on the manifest.
+        </div>
       </div>
       <div class="panel">
         <h3>Next</h3>
         <div class="hint">
-          Next step: add loop variants and an arranger that changes the mask every 4 or 8 bars.
-          Then we link visuals to the same controls for full “scene vibe”.
+          Next: add a Variety slider to control swap frequency and how “busy” the arranger feels.
         </div>
       </div>
     </div>
@@ -262,13 +233,14 @@ fx/vinyl_noise.wav
   const $ = (id) => document.getElementById(id);
 
   // ===== CDN CONFIG =====
-  // While iterating, "main" is convenient but can be cached.
-  // When you want guaranteed freshness, replace REF with a commit hash.
+  // If an audio update seems cached, set REF to a commit hash.
   const USER = "justslashn";
   const REPO = "LofiLand";
-  const REF = "main"; // or a commit hash like "a1b2c3d4e5f6..."
-  const CDN = `https://cdn.jsdelivr.net/gh/${USER}/${REPO}@${REF}/`;
+  const REF  = "main";
+  const CDN  = `https://cdn.jsdelivr.net/gh/${USER}/${REPO}@${REF}/`;
   // ======================
+
+  const STEMS = ["drums","bass","chords","melody"];
 
   const statusEl = $("status");
   const sceneLabel = $("sceneLabel");
@@ -315,27 +287,86 @@ fx/vinyl_noise.wav
   bindValue(ui.glow, uiVals.glowV);
   bindValue(ui.vignette, uiVals.vignetteV);
 
-  // Audio Engine (Web Audio)
+  // Audio Engine
   let ac = null;
   let master = null;
 
-  // Nodes
   let trackBus = null;
   let fxRain = null, fxConv = null, fxVinyl = null;
   let filter = null;
+
   let wobbleLFO = null, wobbleGain = null;
 
-  // Sources
-  let sources = {};
-  let buffers = {};
-  let isPlaying = false;
-
-  // Simple “arrangement mask”
-  let arrangement = { drums:true, bass:true, chords:true, melody:true };
-
-  // Analyzer for waveform
   let analyser = null;
   let data = null;
+
+  // FX buffers + sources
+  let fxBuffers = {};
+  let fxSources = {};
+
+  // Manifest + stem buffers
+  let manifest = {};
+  let stemFiles = { drums: [], bass: [], chords: [], melody: [] };
+  let stemBuffers = { drums: [], bass: [], chords: [], melody: [] };
+
+  // Stem playback
+  let stemChannelGain = {};
+  let stemActive = {}; // { stem: { src, gainNode, variantIndex } }
+  let arrangement = { drums:true, bass:true, chords:true, melody:true };
+
+  // Timing
+  let isPlaying = false;
+  let loopDur = 0;
+  let playStartTime = 0;
+
+  function setStatus(msg){ statusEl.textContent = msg; }
+
+  async function ensureAudio(){
+    if(ac) return;
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+
+    master = ac.createGain();
+    master.gain.value = 0.9;
+    master.connect(ac.destination);
+
+    trackBus = ac.createGain();
+    trackBus.gain.value = parseFloat(ui.trackVol.value);
+
+    filter = ac.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 16000;
+
+    analyser = ac.createAnalyser();
+    analyser.fftSize = 2048;
+    data = new Uint8Array(analyser.fftSize);
+
+    trackBus.connect(filter);
+    filter.connect(analyser);
+    analyser.connect(master);
+
+    fxRain = ac.createGain(); fxRain.gain.value = parseFloat(ui.rainVol.value);
+    fxConv = ac.createGain(); fxConv.gain.value = parseFloat(ui.convVol.value);
+    fxVinyl = ac.createGain(); fxVinyl.gain.value = parseFloat(ui.vinylVol.value);
+    fxRain.connect(master);
+    fxConv.connect(master);
+    fxVinyl.connect(master);
+
+    wobbleLFO = ac.createOscillator();
+    wobbleGain = ac.createGain();
+    wobbleLFO.type = "sine";
+    wobbleLFO.frequency.value = 0.25;
+    wobbleGain.gain.value = 0.0;
+    wobbleLFO.connect(wobbleGain);
+    wobbleLFO.start();
+
+    setStatus("Audio ready.");
+  }
+
+  async function fetchJson(url){
+    const res = await fetch(url, { cache: "no-store" });
+    if(!res.ok) throw new Error("Missing file: " + url);
+    return await res.json();
+  }
 
   async function loadBuffer(url){
     const res = await fetch(url, { cache: "no-store" });
@@ -352,119 +383,159 @@ fx/vinyl_noise.wav
     return src;
   }
 
-  function setStatus(msg){ statusEl.textContent = msg; }
+  function stopAll(){
+    for (const k of Object.keys(fxSources)) {
+      try { fxSources[k].stop(); } catch {}
+    }
+    fxSources = {};
 
-  async function ensureAudio(){
-    if(ac) return;
-    ac = new (window.AudioContext || window.webkitAudioContext)();
+    for (const s of Object.keys(stemActive)) {
+      try { stemActive[s].src.stop(); } catch {}
+    }
+    stemActive = {};
 
-    master = ac.createGain();
-    master.gain.value = 0.9;
-    master.connect(ac.destination);
-
-    // Track bus
-    trackBus = ac.createGain();
-    trackBus.gain.value = parseFloat(ui.trackVol.value);
-
-    // Filter (muffle)
-    filter = ac.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = 16000;
-
-    // Wobble (tiny pitch drift on melody + chords via playbackRate modulation)
-    wobbleLFO = ac.createOscillator();
-    wobbleGain = ac.createGain();
-    wobbleLFO.type = "sine";
-    wobbleLFO.frequency.value = 0.25;
-    wobbleGain.gain.value = 0.0;
-    wobbleLFO.connect(wobbleGain);
-
-    // Analyzer
-    analyser = ac.createAnalyser();
-    analyser.fftSize = 2048;
-    data = new Uint8Array(analyser.fftSize);
-
-    // Routing: trackBus -> filter -> analyser -> master
-    trackBus.connect(filter);
-    filter.connect(analyser);
-    analyser.connect(master);
-
-    // FX layers to master
-    fxRain = ac.createGain(); fxRain.gain.value = parseFloat(ui.rainVol.value);
-    fxConv = ac.createGain(); fxConv.gain.value = parseFloat(ui.convVol.value);
-    fxVinyl = ac.createGain(); fxVinyl.gain.value = parseFloat(ui.vinylVol.value);
-    fxRain.connect(master);
-    fxConv.connect(master);
-    fxVinyl.connect(master);
-
-    wobbleLFO.start();
-    setStatus("Audio ready.");
+    isPlaying = false;
   }
 
-  function stopAll(){
-    for(const k of Object.keys(sources)){
-      try { sources[k].stop(); } catch {}
+  function nextLoopBoundaryTime(){
+    const now = ac.currentTime;
+    const elapsed = Math.max(0, now - playStartTime);
+    const n = Math.ceil(elapsed / loopDur);
+    return playStartTime + n * loopDur;
+  }
+
+  function connectWobbleToActive(){
+    try { wobbleGain.disconnect(); } catch {}
+    if (stemActive.melody?.src) wobbleGain.connect(stemActive.melody.src.playbackRate);
+    if (stemActive.chords?.src) wobbleGain.connect(stemActive.chords.src.playbackRate);
+  }
+
+  function startStem(stemName, variantIndex, when, fadeSeconds = 0.12){
+    const bufArr = stemBuffers[stemName];
+    if (!bufArr || bufArr.length === 0) return;
+
+    const buf = bufArr[variantIndex];
+
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(1, when + fadeSeconds);
+
+    g.connect(stemChannelGain[stemName]);
+
+    const src = ac.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    src.connect(g);
+    src.start(when);
+
+    const old = stemActive[stemName];
+    if (old?.gainNode && old?.src) {
+      old.gainNode.gain.setValueAtTime(old.gainNode.gain.value, when);
+      old.gainNode.gain.linearRampToValueAtTime(0, when + fadeSeconds);
+      try { old.src.stop(when + fadeSeconds + 0.03); } catch {}
     }
-    sources = {};
-    isPlaying = false;
+
+    stemActive[stemName] = { src, gainNode: g, variantIndex };
+  }
+
+  function pickDifferentVariantIndex(stemName){
+    const n = stemBuffers[stemName]?.length ?? 0;
+    if (n <= 1) return stemActive[stemName]?.variantIndex ?? 0;
+    const current = stemActive[stemName]?.variantIndex ?? 0;
+
+    let next = current;
+    for (let tries = 0; tries < 10 && next === current; tries++) {
+      next = Math.floor(Math.random() * n);
+    }
+    return next;
   }
 
   async function loadPack(packName){
     await ensureAudio();
     stopAll();
-    buffers = {};
 
-    const base = `${CDN}packs/${packName}/`;
-    const fx = `${CDN}fx/`;
+    manifest = {};
+    stemFiles = { drums: [], bass: [], chords: [], melody: [] };
+    stemBuffers = { drums: [], bass: [], chords: [], melody: [] };
+    fxBuffers = {};
 
-    setStatus("Loading audio...");
-    const urls = {
-      drums: base + "drums_loop_1.wav",
-      bass: base + "bass_loop_1.wav",
-      chords: base + "chords_loop_1.wav",
-      melody: base + "melody_loop_1.wav",
-      rain: fx + "rain.mp3",
-      conv: fx + "cafe_chatter.mp3",
-      vinyl: fx + "vinyl_noise.mp3"
+    const packBase = `${CDN}packs/${packName}/`;
+    const fxBase = `${CDN}fx/`;
+    const manifestUrl = `${packBase}manifest.json`;
+
+    setStatus("Loading manifest...");
+    manifest = await fetchJson(manifestUrl);
+
+    // Normalize: missing stems become empty arrays
+    for (const s of STEMS) {
+      const arr = Array.isArray(manifest[s]) ? manifest[s] : [];
+      stemFiles[s] = arr;
+    }
+
+    // Require drums (timebase). Others optional.
+    if (stemFiles.drums.length === 0) {
+      throw new Error(`Manifest has no "drums" entries: ${manifestUrl}`);
+    }
+
+    setStatus("Loading stem buffers...");
+    for (const s of STEMS) {
+      const files = stemFiles[s];
+      stemBuffers[s] = [];
+      for (const f of files) {
+        stemBuffers[s].push(await loadBuffer(packBase + f));
+      }
+    }
+
+    // Set loop duration from drums[0]
+    loopDur = stemBuffers.drums[0].duration;
+
+    // FX (fixed filenames)
+    fxBuffers.rain  = await loadBuffer(fxBase + "rain.mp3");
+    fxBuffers.conv  = await loadBuffer(fxBase + "cafe_chatter.mp3");
+    fxBuffers.vinyl = await loadBuffer(fxBase + "vinyl_noise.mp3");
+
+    // Default arrangement: enable only stems that exist
+    arrangement = {
+      drums: stemBuffers.drums.length > 0,
+      bass: stemBuffers.bass.length > 0,
+      chords: stemBuffers.chords.length > 0,
+      melody: stemBuffers.melody.length > 0
     };
 
-    for(const [k,u] of Object.entries(urls)){
-      buffers[k] = await loadBuffer(u);
-    }
-    setStatus("Loaded pack: " + packName);
+    const counts = STEMS.map(s => `${s}:${stemBuffers[s].length}`).join(", ");
+    setStatus(`Loaded ${packName}. Variants: ${counts}`);
   }
 
   function startAll(){
     if(isPlaying) return;
-    const t0 = ac.currentTime + 0.05;
 
-    // Per-stem gains
-    const gDrums = ac.createGain(); gDrums.gain.value = arrangement.drums ? 1 : 0;
-    const gBass  = ac.createGain(); gBass.gain.value  = arrangement.bass ? 1 : 0;
-    const gCh    = ac.createGain(); gCh.gain.value    = arrangement.chords ? 1 : 0;
-    const gMel   = ac.createGain(); gMel.gain.value   = arrangement.melody ? 1 : 0;
+    const t0 = ac.currentTime + 0.10;
+    playStartTime = t0;
 
-    gDrums.connect(trackBus);
-    gBass.connect(trackBus);
-    gCh.connect(trackBus);
-    gMel.connect(trackBus);
+    // Channel gains per stem
+    stemChannelGain = {};
+    for (const s of STEMS) {
+      if ((stemBuffers[s]?.length ?? 0) === 0) continue;
+      const g = ac.createGain();
+      g.gain.value = arrangement[s] ? 1 : 0;
+      g.connect(trackBus);
+      stemChannelGain[s] = g;
+    }
 
-    sources.drums = makeLoopSource(buffers.drums, gDrums);
-    sources.bass = makeLoopSource(buffers.bass, gBass);
-    sources.chords = makeLoopSource(buffers.chords, gCh);
-    sources.melody = makeLoopSource(buffers.melody, gMel);
+    // Start first variant for each available stem
+    for (const s of STEMS) {
+      if (!stemChannelGain[s]) continue;
+      startStem(s, 0, t0, 0.08);
+    }
 
     // FX
-    sources.rain = makeLoopSource(buffers.rain, fxRain);
-    sources.conv = makeLoopSource(buffers.conv, fxConv);
-    sources.vinyl = makeLoopSource(buffers.vinyl, fxVinyl);
+    fxSources.rain  = makeLoopSource(fxBuffers.rain, fxRain);
+    fxSources.conv  = makeLoopSource(fxBuffers.conv, fxConv);
+    fxSources.vinyl = makeLoopSource(fxBuffers.vinyl, fxVinyl);
+    Object.values(fxSources).forEach(src => src.start(t0));
 
-    // Wobble: modulate playbackRate for melody + chords
-    wobbleGain.connect(sources.melody.playbackRate);
-    wobbleGain.connect(sources.chords.playbackRate);
+    connectWobbleToActive();
 
-    // Start all sources together
-    Object.values(sources).forEach(src => src.start(t0));
     isPlaying = true;
     setStatus("Playing.");
   }
@@ -477,31 +548,44 @@ fx/vinyl_noise.wav
     fxConv.gain.setTargetAtTime(parseFloat(ui.convVol.value), ac.currentTime, 0.03);
     fxVinyl.gain.setTargetAtTime(parseFloat(ui.vinylVol.value), ac.currentTime, 0.03);
 
-    // Muffle maps 0..1 to 16k..800 Hz roughly, with a curve
     const m = parseFloat(ui.muffle.value);
     const freq = 800 + (16000 - 800) * Math.pow(1 - m, 2.2);
     filter.frequency.setTargetAtTime(freq, ac.currentTime, 0.05);
 
-    // Wobble maps to tiny playbackRate variation
     const w = parseFloat(ui.wobble.value);
     wobbleGain.gain.setTargetAtTime(w * 0.004, ac.currentTime, 0.05);
   }
 
-  function shuffleArrangement(){
+  function shuffleNow(){
+    // Mask: only toggle stems that exist
+    const exists = (s) => (stemBuffers[s]?.length ?? 0) > 0;
+
     arrangement = {
       drums: true,
-      bass: Math.random() > 0.1,
-      chords: Math.random() > 0.15,
-      melody: Math.random() > 0.35
+      bass: exists("bass") ? (Math.random() > 0.05) : false,
+      chords: exists("chords") ? (Math.random() > 0.10) : false,
+      melody: exists("melody") ? (Math.random() > 0.30) : false
     };
 
     if(!isPlaying) return;
 
-    // MVP: restart loop sources with new mask (works, not perfect).
-    // Next iteration: keep sources running and ramp gains for click-free changes.
-    stopAll();
-    setTimeout(() => startAll(), 50);
-    setStatus("Shuffled arrangement.");
+    // Apply mask smoothly
+    for (const s of STEMS) {
+      if (!stemChannelGain[s]) continue;
+      stemChannelGain[s].gain.setTargetAtTime(arrangement[s] ? 1 : 0, ac.currentTime, 0.06);
+    }
+
+    // Variant swaps on next loop boundary
+    const when = nextLoopBoundaryTime();
+    for (const s of STEMS) {
+      if (!stemChannelGain[s]) continue;
+      const nextIdx = pickDifferentVariantIndex(s);
+      const curIdx = stemActive[s]?.variantIndex ?? 0;
+      if (nextIdx !== curIdx) startStem(s, nextIdx, when, 0.12);
+    }
+
+    setTimeout(() => connectWobbleToActive(), 150);
+    setStatus("Shuffled: mask + variants (next boundary).");
   }
 
   ["trackVol","rainVol","convVol","vinylVol","muffle","wobble"].forEach(k => {
@@ -534,11 +618,12 @@ fx/vinyl_noise.wav
     updateAudioFromUI();
   });
 
-  ui.shuffle.addEventListener("click", shuffleArrangement);
+  ui.shuffle.addEventListener("click", shuffleNow);
 
-  // Scenes: animated placeholders (upgrade later)
+  // Scenes (animated placeholders)
   const sceneCanvas = $("scene");
   const sctx = sceneCanvas.getContext("2d");
+
   function resizeCanvasToCSS(c){
     const r = c.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
@@ -565,6 +650,7 @@ fx/vinyl_noise.wav
 
     const glow = parseFloat(ui.glow.value);
     const vign = parseFloat(ui.vignette.value);
+    const rainAmt = parseFloat(ui.rainVol.value);
 
     sctx.fillStyle = "#02040a";
     sctx.fillRect(0,0,w,h);
@@ -576,7 +662,6 @@ fx/vinyl_noise.wav
     sctx.fillRect(0,0,w,h);
     sctx.globalAlpha = 1;
 
-    const rainAmt = parseFloat(ui.rainVol.value);
     const drops = Math.floor(120 * (0.2 + rainAmt));
     sctx.strokeStyle = "rgba(200,240,255,0.22)";
     sctx.lineWidth = 1;
