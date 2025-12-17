@@ -15,7 +15,7 @@ def build_pack_manifest(pack_path: Path):
   manifest = {}
   for stem in STEMS:
     files = sorted(
-      [p.name for p in pack_path.glob(f"{stem}_loop_*.wav")],
+      [p.name for p in pack_path.glob(f"{stem}_loop_*.ogg")],
       key=natural_key
     )
     if files:

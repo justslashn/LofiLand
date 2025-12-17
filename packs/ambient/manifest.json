@@ -1,18 +1,18 @@
 {
   "drums": [
-    "drums_loop_01.wav",
-    "drums_loop_02.wav"
+    "drums_loop_01.ogg",
+    "drums_loop_02.ogg"
   ],
   "bass": [
-    "bass_loop_01.wav",
-    "bass_loop_02.wav"
+    "bass_loop_01.ogg",
+    "bass_loop_02.ogg"
   ],
   "chords": [
-    "chords_loop_01.wav",
-    "chords_loop_02.wav"
+    "chords_loop_01.ogg",
+    "chords_loop_02.ogg"
   ],
   "melody": [
-    "melody_loop_01.wav",
-    "melody_loop_02.wav"
+    "melody_loop_01.ogg",
+    "melody_loop_02.ogg"
   ]
 }
