@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lofi Scenes</title>
+  <style>
+    :root{
+      --bg:#05070b;
+      --panel:#0b1220;
+      --panel2:#0a0f1a;
+      --ink:#cfe8ff;
+      --muted:#6aa0c8;
+      --accent:#67d9ff;
+      --accent2:#b06bff;
+      --good:#7dffb2;
+      --warn:#ffe06b;
+      --line:rgba(103,217,255,.18);
+      --shadow: rgba(0,0,0,.45);
+      --radius:16px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      background: radial-gradient(1200px 700px at 35% 20%, rgba(103,217,255,.08), transparent 60%),
+                  radial-gradient(900px 600px at 80% 75%, rgba(176,107,255,.08), transparent 55%),
+                  var(--bg);
+      color:var(--ink);
+      font-family: var(--mono);
+      letter-spacing:.2px;
+    }
+    .app{
+      max-width: 1180px;
+      margin: 28px auto;
+      padding: 18px;
+      display:grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 16px;
+    }
+    .frame{
+      background: linear-gradient(180deg, rgba(255,255,255,.04), transparent 40%),
+                  var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 18px 40px var(--shadow);
+      overflow:hidden;
+      position:relative;
+    }
+    .scene{
+      aspect-ratio: 16 / 9;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position:relative;
+      background: #02040a;
+    }
+    .scene canvas{ width:100%; height:100%; display:block; }
+    .scene .label{
+      position:absolute;
+      top:12px; left:12px;
+      padding:8px 10px;
+      border:1px solid var(--line);
+      background: rgba(5,7,11,.55);
+      border-radius: 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .row{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      padding: 14px;
+    }
+    .panel{
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px;
+    }
+    h3{
+      margin:0 0 10px 0;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .btns{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom: 10px;
+    }
+    button, select{
+      background: rgba(103,217,255,.08);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    button:hover{ border-color: rgba(103,217,255,.35); }
+    .grid{
+      display:grid;
+      gap:10px;
+    }
+    .control{
+      display:grid;
+      grid-template-columns: 120px 1fr 46px;
+      align-items:center;
+      gap:10px;
+      font-size: 12px;
+    }
+    input[type="range"]{ width:100%; }
+    .val{ color: var(--muted); text-align:right; }
+    .wave{
+      height: 90px;
+      padding: 12px 14px;
+      border-top: 1px solid var(--line);
+      background: rgba(0,0,0,.12);
+    }
+    .footer{
+      grid-column: 1 / -1;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:16px;
+    }
+    .hint{
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .tag{
+      display:inline-block;
+      padding: 2px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      margin-right: 6px;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="frame">
+      <div class="scene">
+        <canvas id="scene"></canvas>
+        <div class="label" id="sceneLabel">Scene: Ramen Rain</div>
+      </div>
+
+      <div class="wave">
+        <canvas id="wave" width="1200" height="90"></canvas>
+      </div>
+
+      <div class="row">
+        <div class="panel">
+          <h3>Scene Select</h3>
+          <div class="btns">
+            <button data-scene="ramen">Ramen Rain</button>
+            <button data-scene="capsule">Capsule Desk</button>
+            <button data-scene="submarine">Submarine Drift</button>
+          </div>
+
+          <h3>Vibe Pack</h3>
+          <div class="btns">
+            <select id="pack">
+              <option value="lofi">Lofi Trip-hop</option>
+              <option value="ambient">Ambient</option>
+              <option value="spacehop">Spacehop</option>
+            </select>
+            <button id="play">Play</button>
+            <button id="pause">Pause</button>
+            <button id="shuffle">Shuffle Arrangement</button>
+          </div>
+
+          <div class="hint">
+            <span class="tag">infinite loop</span>
+            <span class="tag">stem mixer</span>
+            <span class="tag">subtle variation</span>
+            <div style="margin-top:8px">
+              If audio does nothing, click Play again. Browsers require a user gesture.
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Vibe Mix</h3>
+          <div class="grid">
+            <div class="control"><div>Track</div><input id="trackVol" type="range" min="0" max="1" step="0.01" value="0.8"/><div class="val" id="trackVolV">0.80</div></div>
+            <div class="control"><div>Rain</div><input id="rainVol" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="rainVolV">0.35</div></div>
+            <div class="control"><div>Conversation</div><input id="convVol" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="convVolV">0.35</div></div>
+            <div class="control"><div>Vinyl</div><input id="vinylVol" type="range" min="0" max="1" step="0.01" value="0.15"/><div class="val" id="vinylVolV">0.15</div></div>
+
+            <h3 style="margin:10px 0 0 0;">CRT Controls</h3>
+            <div class="control"><div>Muffle</div><input id="muffle" type="range" min="0" max="1" step="0.01" value="0.25"/><div class="val" id="muffleV">0.25</div></div>
+            <div class="control"><div>Wobble</div><input id="wobble" type="range" min="0" max="1" step="0.01" value="0.20"/><div class="val" id="wobbleV">0.20</div></div>
+            <div class="control"><div>Glow</div><input id="glow" type="range" min="0" max="1" step="0.01" value="0.30"/><div class="val" id="glowV">0.30</div></div>
+            <div class="control"><div>Vignette</div><input id="vignette" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="vignetteV">0.35</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <div class="panel" style="margin:14px;">
+        <h3>How it works</h3>
+        <div class="hint">
+          This MVP loads loops for drums, bass, chords, melody, plus rain and room layers.
+          It keeps them in sync, then every few bars it can toggle stems and gently move filters.
+          You can add more loop variants later and it will feel endless.
+        </div>
+      </div>
+
+      <div class="panel" style="margin:0 14px 14px 14px;">
+        <h3>CDN Layout</h3>
+        <div class="hint">
+          Host these paths in your public GitHub repo, served via jsDelivr:
+          <div style="margin-top:8px; white-space:pre-wrap; color: var(--muted);">
+packs/lofi/drums_loop_1.wav
+packs/lofi/bass_loop_1.wav
+packs/lofi/chords_loop_1.wav
+packs/lofi/melody_loop_1.wav
+
+packs/ambient/drums_loop_1.wav
+packs/ambient/bass_loop_1.wav
+packs/ambient/chords_loop_1.wav
+packs/ambient/melody_loop_1.wav
+
+packs/spacehop/drums_loop_1.wav
+packs/spacehop/bass_loop_1.wav
+packs/spacehop/chords_loop_1.wav
+packs/spacehop/melody_loop_1.wav
+
+fx/rain.wav
+fx/cafe_chatter.wav
+fx/vinyl_noise.wav
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="panel">
+        <h3>Status</h3>
+        <div class="hint" id="status">Idle.</div>
+      </div>
+      <div class="panel">
+        <h3>Next</h3>
+        <div class="hint">
+          Next step: add loop variants and an arranger that changes the mask every 4 or 8 bars.
+          Then we link visuals to the same controls for full “scene vibe”.
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  // ===== CDN CONFIG =====
+  // While iterating, "main" is convenient but can be cached.
+  // When you want guaranteed freshness, replace REF with a commit hash.
+  const USER = "justslashn";
+  const REPO = "LofiLand";
+  const REF = "main"; // or a commit hash like "a1b2c3d4e5f6..."
+  const CDN = `https://cdn.jsdelivr.net/gh/${USER}/${REPO}@${REF}/`;
+  // ======================
+
+  const statusEl = $("status");
+  const sceneLabel = $("sceneLabel");
+
+  const ui = {
+    pack: $("pack"),
+    play: $("play"),
+    pause: $("pause"),
+    shuffle: $("shuffle"),
+
+    trackVol: $("trackVol"),
+    rainVol: $("rainVol"),
+    convVol: $("convVol"),
+    vinylVol: $("vinylVol"),
+
+    muffle: $("muffle"),
+    wobble: $("wobble"),
+    glow: $("glow"),
+    vignette: $("vignette")
+  };
+
+  const uiVals = {
+    trackVolV: $("trackVolV"),
+    rainVolV: $("rainVolV"),
+    convVolV: $("convVolV"),
+    vinylVolV: $("vinylVolV"),
+    muffleV: $("muffleV"),
+    wobbleV: $("wobbleV"),
+    glowV: $("glowV"),
+    vignetteV: $("vignetteV"),
+  };
+
+  function bindValue(el, out){
+    const sync = () => out.textContent = Number(el.value).toFixed(2);
+    el.addEventListener("input", sync);
+    sync();
+  }
+  bindValue(ui.trackVol, uiVals.trackVolV);
+  bindValue(ui.rainVol, uiVals.rainVolV);
+  bindValue(ui.convVol, uiVals.convVolV);
+  bindValue(ui.vinylVol, uiVals.vinylVolV);
+  bindValue(ui.muffle, uiVals.muffleV);
+  bindValue(ui.wobble, uiVals.wobbleV);
+  bindValue(ui.glow, uiVals.glowV);
+  bindValue(ui.vignette, uiVals.vignetteV);
+
+  // Audio Engine (Web Audio)
+  let ac = null;
+  let master = null;
+
+  // Nodes
+  let trackBus = null;
+  let fxRain = null, fxConv = null, fxVinyl = null;
+  let filter = null;
+  let wobbleLFO = null, wobbleGain = null;
+
+  // Sources
+  let sources = {};
+  let buffers = {};
+  let isPlaying = false;
+
+  // Simple “arrangement mask”
+  let arrangement = { drums:true, bass:true, chords:true, melody:true };
+
+  // Analyzer for waveform
+  let analyser = null;
+  let data = null;
+
+  async function loadBuffer(url){
+    const res = await fetch(url, { cache: "no-store" });
+    if(!res.ok) throw new Error("Missing file: " + url);
+    const arr = await res.arrayBuffer();
+    return await ac.decodeAudioData(arr);
+  }
+
+  function makeLoopSource(buffer, destination){
+    const src = ac.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    src.connect(destination);
+    return src;
+  }
+
+  function setStatus(msg){ statusEl.textContent = msg; }
+
+  async function ensureAudio(){
+    if(ac) return;
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+
+    master = ac.createGain();
+    master.gain.value = 0.9;
+    master.connect(ac.destination);
+
+    // Track bus
+    trackBus = ac.createGain();
+    trackBus.gain.value = parseFloat(ui.trackVol.value);
+
+    // Filter (muffle)
+    filter = ac.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 16000;
+
+    // Wobble (tiny pitch drift on melody + chords via playbackRate modulation)
+    wobbleLFO = ac.createOscillator();
+    wobbleGain = ac.createGain();
+    wobbleLFO.type = "sine";
+    wobbleLFO.frequency.value = 0.25;
+    wobbleGain.gain.value = 0.0;
+    wobbleLFO.connect(wobbleGain);
+
+    // Analyzer
+    analyser = ac.createAnalyser();
+    analyser.fftSize = 2048;
+    data = new Uint8Array(analyser.fftSize);
+
+    // Routing: trackBus -> filter -> analyser -> master
+    trackBus.connect(filter);
+    filter.connect(analyser);
+    analyser.connect(master);
+
+    // FX layers to master
+    fxRain = ac.createGain(); fxRain.gain.value = parseFloat(ui.rainVol.value);
+    fxConv = ac.createGain(); fxConv.gain.value = parseFloat(ui.convVol.value);
+    fxVinyl = ac.createGain(); fxVinyl.gain.value = parseFloat(ui.vinylVol.value);
+    fxRain.connect(master);
+    fxConv.connect(master);
+    fxVinyl.connect(master);
+
+    wobbleLFO.start();
+    setStatus("Audio ready.");
+  }
+
+  function stopAll(){
+    for(const k of Object.keys(sources)){
+      try { sources[k].stop(); } catch {}
+    }
+    sources = {};
+    isPlaying = false;
+  }
+
+  async function loadPack(packName){
+    await ensureAudio();
+    stopAll();
+    buffers = {};
+
+    const base = `${CDN}packs/${packName}/`;
+    const fx = `${CDN}fx/`;
+
+    setStatus("Loading audio...");
+    const urls = {
+      drums: base + "drums_loop_1.wav",
+      bass: base + "bass_loop_1.wav",
+      chords: base + "chords_loop_1.wav",
+      melody: base + "melody_loop_1.wav",
+      rain: fx + "rain.mp3",
+      conv: fx + "cafe_chatter.mp3",
+      vinyl: fx + "vinyl_noise.mp3"
+    };
+
+    for(const [k,u] of Object.entries(urls)){
+      buffers[k] = await loadBuffer(u);
+    }
+    setStatus("Loaded pack: " + packName);
+  }
+
+  function startAll(){
+    if(isPlaying) return;
+    const t0 = ac.currentTime + 0.05;
+
+    // Per-stem gains
+    const gDrums = ac.createGain(); gDrums.gain.value = arrangement.drums ? 1 : 0;
+    const gBass  = ac.createGain(); gBass.gain.value  = arrangement.bass ? 1 : 0;
+    const gCh    = ac.createGain(); gCh.gain.value    = arrangement.chords ? 1 : 0;
+    const gMel   = ac.createGain(); gMel.gain.value   = arrangement.melody ? 1 : 0;
+
+    gDrums.connect(trackBus);
+    gBass.connect(trackBus);
+    gCh.connect(trackBus);
+    gMel.connect(trackBus);
+
+    sources.drums = makeLoopSource(buffers.drums, gDrums);
+    sources.bass = makeLoopSource(buffers.bass, gBass);
+    sources.chords = makeLoopSource(buffers.chords, gCh);
+    sources.melody = makeLoopSource(buffers.melody, gMel);
+
+    // FX
+    sources.rain = makeLoopSource(buffers.rain, fxRain);
+    sources.conv = makeLoopSource(buffers.conv, fxConv);
+    sources.vinyl = makeLoopSource(buffers.vinyl, fxVinyl);
+
+    // Wobble: modulate playbackRate for melody + chords
+    wobbleGain.connect(sources.melody.playbackRate);
+    wobbleGain.connect(sources.chords.playbackRate);
+
+    // Start all sources together
+    Object.values(sources).forEach(src => src.start(t0));
+    isPlaying = true;
+    setStatus("Playing.");
+  }
+
+  function updateAudioFromUI(){
+    if(!ac) return;
+
+    trackBus.gain.setTargetAtTime(parseFloat(ui.trackVol.value), ac.currentTime, 0.03);
+    fxRain.gain.setTargetAtTime(parseFloat(ui.rainVol.value), ac.currentTime, 0.03);
+    fxConv.gain.setTargetAtTime(parseFloat(ui.convVol.value), ac.currentTime, 0.03);
+    fxVinyl.gain.setTargetAtTime(parseFloat(ui.vinylVol.value), ac.currentTime, 0.03);
+
+    // Muffle maps 0..1 to 16k..800 Hz roughly, with a curve
+    const m = parseFloat(ui.muffle.value);
+    const freq = 800 + (16000 - 800) * Math.pow(1 - m, 2.2);
+    filter.frequency.setTargetAtTime(freq, ac.currentTime, 0.05);
+
+    // Wobble maps to tiny playbackRate variation
+    const w = parseFloat(ui.wobble.value);
+    wobbleGain.gain.setTargetAtTime(w * 0.004, ac.currentTime, 0.05);
+  }
+
+  function shuffleArrangement(){
+    arrangement = {
+      drums: true,
+      bass: Math.random() > 0.1,
+      chords: Math.random() > 0.15,
+      melody: Math.random() > 0.35
+    };
+
+    if(!isPlaying) return;
+
+    // MVP: restart loop sources with new mask (works, not perfect).
+    // Next iteration: keep sources running and ramp gains for click-free changes.
+    stopAll();
+    setTimeout(() => startAll(), 50);
+    setStatus("Shuffled arrangement.");
+  }
+
+  ["trackVol","rainVol","convVol","vinylVol","muffle","wobble"].forEach(k => {
+    ui[k].addEventListener("input", updateAudioFromUI);
+  });
+
+  ui.play.addEventListener("click", async () => {
+    try{
+      await ensureAudio();
+      if(ac.state === "suspended") await ac.resume();
+      await loadPack(ui.pack.value);
+      startAll();
+      updateAudioFromUI();
+    }catch(err){
+      setStatus("Error: " + err.message);
+      console.error(err);
+    }
+  });
+
+  ui.pause.addEventListener("click", async () => {
+    if(!ac) return;
+    stopAll();
+    setStatus("Paused.");
+  });
+
+  ui.pack.addEventListener("change", async () => {
+    if(!ac) return;
+    await loadPack(ui.pack.value);
+    if(isPlaying) startAll();
+    updateAudioFromUI();
+  });
+
+  ui.shuffle.addEventListener("click", shuffleArrangement);
+
+  // Scenes: animated placeholders (upgrade later)
+  const sceneCanvas = $("scene");
+  const sctx = sceneCanvas.getContext("2d");
+  function resizeCanvasToCSS(c){
+    const r = c.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    c.width = Math.floor(r.width * dpr);
+    c.height = Math.floor(r.height * dpr);
+  }
+  window.addEventListener("resize", () => resizeCanvasToCSS(sceneCanvas));
+
+  let sceneMode = "ramen";
+  document.querySelectorAll("button[data-scene]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      sceneMode = btn.dataset.scene;
+      sceneLabel.textContent =
+        "Scene: " +
+        (sceneMode === "ramen" ? "Ramen Rain" : sceneMode === "capsule" ? "Capsule Desk" : "Submarine Drift");
+    });
+  });
+
+  let t = 0;
+  function drawScene(){
+    resizeCanvasToCSS(sceneCanvas);
+    const w = sceneCanvas.width, h = sceneCanvas.height;
+    t += 0.016;
+
+    const glow = parseFloat(ui.glow.value);
+    const vign = parseFloat(ui.vignette.value);
+
+    sctx.fillStyle = "#02040a";
+    sctx.fillRect(0,0,w,h);
+
+    sctx.globalAlpha = 0.10 + glow * 0.18;
+    if(sceneMode === "ramen") sctx.fillStyle = "#1b5cff";
+    if(sceneMode === "capsule") sctx.fillStyle = "#b06bff";
+    if(sceneMode === "submarine") sctx.fillStyle = "#35ffb2";
+    sctx.fillRect(0,0,w,h);
+    sctx.globalAlpha = 1;
+
+    const rainAmt = parseFloat(ui.rainVol.value);
+    const drops = Math.floor(120 * (0.2 + rainAmt));
+    sctx.strokeStyle = "rgba(200,240,255,0.22)";
+    sctx.lineWidth = 1;
+    for(let i=0;i<drops;i++){
+      const x = (Math.sin(i*12.31 + t*0.6) * 0.5 + 0.5) * w;
+      const y = ((i*97 + t*260) % (h+200)) - 200;
+      const len = 30 + rainAmt*50;
+      sctx.beginPath();
+      sctx.moveTo(x,y);
+      sctx.lineTo(x+8,y+len);
+      sctx.stroke();
+    }
+
+    if(sceneMode === "submarine"){
+      sctx.fillStyle = "rgba(255,255,255,0.12)";
+      for(let i=0;i<8;i++){
+        const x = (w * ((i*0.13 + t*0.03) % 1));
+        const y = h*0.35 + Math.sin(t*0.7 + i)*h*0.12;
+        sctx.beginPath();
+        sctx.ellipse(x,y, 14, 6, 0, 0, Math.PI*2);
+        sctx.fill();
+      }
+    }
+
+    if(sceneMode === "capsule"){
+      const cx = w*0.78, cy = h*0.42, r = Math.min(w,h)*0.18;
+      sctx.globalAlpha = 0.25 + glow*0.25;
+      sctx.fillStyle = "rgba(140,200,255,0.35)";
+      sctx.beginPath(); sctx.arc(cx,cy,r,0,Math.PI*2); sctx.fill();
+      sctx.globalAlpha = 1;
+    }
+
+    sctx.globalAlpha = 0.35 + vign*0.45;
+    const grd = sctx.createRadialGradient(w*0.5,h*0.5, Math.min(w,h)*0.25, w*0.5,h*0.5, Math.max(w,h)*0.65);
+    grd.addColorStop(0, "rgba(0,0,0,0)");
+    grd.addColorStop(1, "rgba(0,0,0,1)");
+    sctx.fillStyle = grd;
+    sctx.fillRect(0,0,w,h);
+    sctx.globalAlpha = 1;
+
+    requestAnimationFrame(drawScene);
+  }
+  requestAnimationFrame(drawScene);
+
+  // Waveform
+  const waveCanvas = $("wave");
+  const wctx = waveCanvas.getContext("2d");
+  function drawWave(){
+    const w = waveCanvas.width, h = waveCanvas.height;
+    wctx.clearRect(0,0,w,h);
+    wctx.fillStyle = "rgba(103,217,255,0.12)";
+    wctx.fillRect(0,0,w,h);
+
+    if(analyser && data){
+      analyser.getByteTimeDomainData(data);
+      wctx.strokeStyle = "rgba(207,232,255,0.75)";
+      wctx.lineWidth = 2;
+      wctx.beginPath();
+      for(let i=0;i<data.length;i++){
+        const x = (i/(data.length-1))*w;
+        const v = (data[i]-128)/128;
+        const y = h/2 + v*(h*0.35);
+        if(i===0) wctx.moveTo(x,y);
+        else wctx.lineTo(x,y);
+      }
+      wctx.stroke();
+    }else{
+      wctx.strokeStyle = "rgba(207,232,255,0.35)";
+      wctx.beginPath();
+      wctx.moveTo(0,h/2);
+      wctx.lineTo(w,h/2);
+      wctx.stroke();
+    }
+
+    requestAnimationFrame(drawWave);
+  }
+  requestAnimationFrame(drawWave);
+</script>
+</body>
+</html>
