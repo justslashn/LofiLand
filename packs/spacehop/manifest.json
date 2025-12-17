@@ -1,0 +1,39 @@
+{
+  "drums": [
+    "drums_loop_01.wav",
+    "drums_loop_02.wav",
+    "drums_loop_03.wav",
+    "drums_loop_04.wav",
+    "drums_loop_05.wav",
+    "drums_loop_06.wav",
+    "drums_loop_07.wav",
+    "drums_loop_08.wav",
+    "drums_loop_09.wav",
+    "drums_loop_10.wav",
+    "drums_loop_11.wav",
+    "drums_loop_12.wav",
+    "drums_loop_13.wav",
+    "drums_loop_14.wav",
+    "drums_loop_15.wav",
+    "drums_loop_16.wav",
+    "drums_loop_17.wav"
+  ],
+  "bass": [
+    "bass_loop_01.wav"
+  ],
+  "chords": [
+    "chords_loop_01.wav",
+    "chords_loop_02.wav",
+    "chords_loop_03.wav",
+    "chords_loop_04.wav",
+    "chords_loop_05.wav",
+    "chords_loop_06.wav"
+  ],
+  "melody": [
+    "melody_loop_01.wav",
+    "melody_loop_02.wav",
+    "melody_loop_03.wav",
+    "melody_loop_04.wav",
+    "melody_loop_05.wav"
+  ]
+}
