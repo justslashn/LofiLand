@@ -1,4 +1,3 @@
-```html
 <!doctype html>
 <html lang="en">
 <head>
@@ -326,8 +325,11 @@
   let playStartTime = 0;
 
   // Autonomous arranger
-  let arrangerTimer = null;
-  let barsPerCheck = 8; // musical default: check every 8 bars
+  // We assume each stem loop is BARS_PER_LOOP bars long. If your stems are 8 or 16 bars, change this.
+  const BARS_PER_LOOP = 4;
+
+  let arrangerTimeout = null;
+  let arrangerInterval = null;
 
   function setStatus(msg){ statusEl.textContent = msg; }
 
@@ -566,6 +568,38 @@
     return (stemBuffers[s]?.length ?? 0) > 0;
   }
 
+  function forceOneSwap(){
+    // swap variants on the next loop boundary for at least one stem that has >1 variant
+    const when = nextLoopBoundaryTime();
+
+    const candidates = STEMS.filter(s => stemChannelGain[s] && (stemBuffers[s]?.length ?? 0) > 1);
+    if(candidates.length === 0){
+      // If no variants exist, fall back to a mask change
+      shuffleWithIntensity(1.0);
+      return;
+    }
+
+    const pick = candidates[Math.floor(Math.random() * candidates.length)];
+    const nextIdx = pickDifferentVariantIndex(pick);
+    const curIdx = stemActive[pick]?.variantIndex ?? 0;
+    if(nextIdx !== curIdx) startStem(pick, nextIdx, when, 0.12);
+
+    // also apply a gentle mask nudge
+    const v = 1.0;
+    arrangement = {
+      drums: true,
+      bass: existsStem("bass") ? (Math.random() > 0.15 * v) : false,
+      chords: existsStem("chords") ? (Math.random() > 0.25 * v) : false,
+      melody: existsStem("melody") ? (Math.random() > 0.45 * v) : false
+    };
+    for (const s of STEMS) {
+      if (!stemChannelGain[s]) continue;
+      stemChannelGain[s].gain.setTargetAtTime(arrangement[s] ? 1 : 0, ac.currentTime, 0.08);
+    }
+
+    setTimeout(connectWobbleToActive, 150);
+  }
+
   function shuffleWithIntensity(v){
     // v in [0,1] controls how "busy" the mask + swapping feels
     arrangement = {
@@ -597,23 +631,45 @@
 
   function shuffleNow(){
     if(!isPlaying) return;
-    // Manual shuffle uses full intensity (1.0), but still uses the "soft" logic
     shuffleWithIntensity(1.0);
     setStatus("Shuffled: mask + variants (next boundary).");
   }
 
   function startArranger(){
     stopArranger();
-    if (!loopDur || !isFinite(loopDur) || loopDur <= 0) return;
+    if(!loopDur || !isFinite(loopDur) || loopDur <= 0) return;
 
-    const intervalMs = loopDur * barsPerCheck * 1000;
-    arrangerTimer = setInterval(arrangerTick, intervalMs);
+    // "Bar" length derived from loop duration.
+    const barDur = loopDur / BARS_PER_LOOP;
+
+    // Check every 4 bars.
+    const intervalMs = barDur * 4 * 1000;
+
+    // First check lands exactly on the next 4-bar boundary relative to the loop start.
+    const now = ac.currentTime;
+    const elapsed = Math.max(0, now - playStartTime);
+
+    const barsElapsed = elapsed / barDur;
+    const next4 = Math.ceil(barsElapsed / 4) * 4; // next multiple of 4 bars
+    const firstWhen = playStartTime + next4 * barDur;
+
+    const delayMs = Math.max(0, (firstWhen - now) * 1000);
+    setStatus(`Variety armed (${Number(ui.variety.value).toFixed(2)}). Next change in ~${Math.round(delayMs/1000)}s`);
+
+    arrangerTimeout = setTimeout(() => {
+      arrangerTick();
+      arrangerInterval = setInterval(arrangerTick, intervalMs);
+    }, delayMs);
   }
 
   function stopArranger(){
-    if(arrangerTimer){
-      clearInterval(arrangerTimer);
-      arrangerTimer = null;
+    if(arrangerTimeout){
+      clearTimeout(arrangerTimeout);
+      arrangerTimeout = null;
+    }
+    if(arrangerInterval){
+      clearInterval(arrangerInterval);
+      arrangerInterval = null;
     }
   }
 
@@ -621,10 +677,17 @@
     if(!isPlaying) return;
 
     const v = parseFloat(ui.variety.value);
-    if (!(v > 0)) return;
+    if(!(v > 0)) return;
 
-    // chance that anything happens this cycle
-    if (Math.random() > v) return;
+    // With v < 1, sometimes do nothing.
+    if(v < 0.999 && Math.random() > v) return;
+
+    // v=1.0 produces an audible change every tick.
+    if(v >= 0.999){
+      forceOneSwap();
+      setStatus(`Auto-variation (1.00): next boundary.`);
+      return;
+    }
 
     shuffleWithIntensity(v);
     setStatus(`Auto-variation (${v.toFixed(2)}): next boundary.`);
@@ -633,7 +696,6 @@
   ["trackVol","rainVol","convVol","vinylVol","muffle","wobble","variety"].forEach(k => {
     ui[k].addEventListener("input", () => {
       updateAudioFromUI();
-      // if user changes variety mid-play, restart the arranger so it feels responsive
       if (k === "variety" && isPlaying) startArranger();
     });
   });
@@ -789,4 +851,3 @@
 </script>
 </body>
 </html>
-```
