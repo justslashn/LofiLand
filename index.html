@@ -121,10 +121,13 @@
       font-size: 12px;
     }
     input[type="range"]{ width:100%; }
-    .val{ color: var(--muted); text-align:right; }
+    .control .val{
+      text-align:right;
+      color: var(--muted);
+    }
     .wave{
       height: 90px;
-      padding: 12px 14px;
+      padding: 14px;
       border-top: 1px solid var(--line);
       background: rgba(0,0,0,.12);
     }
@@ -252,6 +255,8 @@
   // ======================
 
   const STEMS = ["drums","bass","chords","melody"];
+  const STEM_WEIGHTS = { drums: 0.18, bass: 0.22, chords: 0.28, melody: 0.32 };
+  const SHUFFLE_INTENSITY = 1.0;
 
   const statusEl = $("status");
   const sceneLabel = $("sceneLabel");
@@ -714,36 +719,76 @@
     return (stemBuffers[s]?.length ?? 0) > 0;
   }
 
+  function pickWeightedStem(available, chosen){
+    const pool = available.filter(s => !chosen.has(s));
+    if (pool.length === 0) return null;
+    const total = pool.reduce((sum, s) => sum + (STEM_WEIGHTS[s] || 1), 0);
+    let r = Math.random() * total;
+    for (const stem of pool) {
+      r -= (STEM_WEIGHTS[stem] || 1);
+      if (r <= 0) return stem;
+    }
+    return pool[pool.length - 1];
+  }
+
+  function changeCountForIntensity(v){
+    if (v < 0.34) return (Math.random() < v * 0.35) ? 2 : 1; // usually 1
+    if (v < 0.67) return (Math.random() < 0.60) ? 2 : 1; // often 2
+    return (Math.random() < 0.65) ? 3 : 2; // up to 3, never 4
+  }
+
+  function pickStemsToChange(v){
+    const available = STEMS.filter(s => existsStem(s));
+    if (available.length === 0) return [];
+    const maxAllowed = Math.max(1, available.length - 1);
+    const desired = Math.max(1, Math.min(changeCountForIntensity(v), maxAllowed));
+    const chosen = new Set();
+    while (chosen.size < desired) {
+      const stem = pickWeightedStem(available, chosen);
+      if (!stem) break;
+      chosen.add(stem);
+    }
+    if (chosen.size === 0) chosen.add(available[0]);
+    return Array.from(chosen);
+  }
+
   function shuffleWithIntensity(v){
-    arrangement = {
-      drums: true,
-      bass: existsStem("bass") ? (Math.random() > 0.15 * v) : false,
-      chords: existsStem("chords") ? (Math.random() > 0.25 * v) : false,
-      melody: existsStem("melody") ? (Math.random() > 0.45 * v) : false
-    };
+    const targets = pickStemsToChange(v);
+    const offBase = { drums: 0.08, bass: 0.15, chords: 0.25, melody: 0.45 };
+    const nextArrangement = { ...arrangement };
+
+    targets.forEach(stem => {
+      const offProb = (offBase[stem] || 0.12) * v;
+      nextArrangement[stem] = Math.random() > offProb;
+    });
+
+    arrangement = nextArrangement;
 
     for (const s of STEMS) {
       if (!stemChannelGain[s]) continue;
-      stemChannelGain[s].gain.setTargetAtTime(arrangement[s] ? 1 : 0, ac.currentTime, 0.08);
+      const active = arrangement[s];
+      stemChannelGain[s].gain.setTargetAtTime(active ? 1 : 0, ac.currentTime, 0.08);
     }
 
     const when = nextLoopBoundaryTime();
-    for (const s of STEMS) {
-      if (!stemChannelGain[s]) continue;
-      if (Math.random() > v) continue;
+    const variantChance = Math.min(1, 0.45 + v * 0.45);
+    targets.forEach(s => {
+      if (!stemChannelGain[s]) return;
+      if (Math.random() > variantChance) return;
 
       const nextIdx = pickDifferentVariantIndex(s);
       const curIdx = stemActive[s]?.variantIndex ?? 0;
       if (nextIdx !== curIdx) startStem(s, nextIdx, when, 0.12);
-    }
+    });
 
     setTimeout(connectWobbleToActive, 150);
   }
 
   function shuffleNow(){
     if(!isPlaying) return;
-    shuffleWithIntensity(1.0);
-    setStatus("Shuffled: mask + variants (next boundary).");
+    const v = Math.max(parseFloat(ui.variety.value), SHUFFLE_INTENSITY);
+    shuffleWithIntensity(v);
+    setStatus(`Shuffle: strong mask+variation (${v.toFixed(2)}) queued.`);
   }
 
   function startArranger(){
@@ -770,7 +815,7 @@
     if (Math.random() > v) return;
 
     shuffleWithIntensity(v);
-    setStatus(`Auto-variation (${v.toFixed(2)}): next boundary.`);
+    setStatus(`Variety: evolution tick (${v.toFixed(2)}) queued.`);
   }
 
   ["trackVol","rainVol","convVol","vinylVol","muffle","wobble","variety"].forEach(k => {
