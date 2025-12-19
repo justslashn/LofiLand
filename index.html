@@ -717,12 +717,52 @@
 
   function shuffleWithIntensity(v){
     // v in [0,1] controls how "busy" the mask + swapping feels
-    arrangement = {
+    const prevArrangement = { ...arrangement };
+    const newArrangement = {
       drums: true,
       bass: existsStem("bass") ? (Math.random() > 0.15 * v) : false,
       chords: existsStem("chords") ? (Math.random() > 0.25 * v) : false,
       melody: existsStem("melody") ? (Math.random() > 0.45 * v) : false
     };
+    arrangement = newArrangement;
+
+    const maskChanged = {};
+    STEMS.forEach(s => {
+      maskChanged[s] = arrangement[s] !== prevArrangement[s];
+    });
+
+    const variantPlan = {};
+    STEMS.forEach(s => {
+      const curIdx = stemActive[s]?.variantIndex ?? 0;
+      let doSwap = false;
+      let nextIdx = curIdx;
+      if (stemChannelGain[s] && Math.random() <= v) {
+        const candidate = pickDifferentVariantIndex(s);
+        if (candidate !== curIdx) {
+          doSwap = true;
+          nextIdx = candidate;
+        }
+      }
+      variantPlan[s] = { doSwap, nextIdx };
+    });
+
+    const changeFlags = {};
+    STEMS.forEach(s => {
+      changeFlags[s] = !!maskChanged[s] || !!variantPlan[s].doSwap;
+    });
+
+    const changedStems = STEMS.filter(s => changeFlags[s]);
+    if (changedStems.length === STEMS.length) {
+      const preserveOrder = ["drums","bass","chords","melody"];
+      const keep = preserveOrder.find(s => changeFlags[s]);
+      if (keep) {
+        changeFlags[keep] = false;
+        maskChanged[keep] = false;
+        arrangement[keep] = prevArrangement[keep];
+        variantPlan[keep].doSwap = false;
+        variantPlan[keep].nextIdx = stemActive[keep]?.variantIndex ?? 0;
+      }
+    }
 
     const when = nextLoopBoundaryTime();
 
@@ -739,9 +779,8 @@
     // Swap variants on next loop boundary, per-stem probability influenced by v
     for (const s of STEMS) {
       if (!stemChannelGain[s]) continue;
-      if (Math.random() > v) continue;
-
-      const nextIdx = pickDifferentVariantIndex(s);
+      if (!variantPlan[s].doSwap || !changeFlags[s]) continue;
+      const nextIdx = variantPlan[s].nextIdx;
       const curIdx = stemActive[s]?.variantIndex ?? 0;
       if (nextIdx !== curIdx) startStem(s, nextIdx, when, 0.12);
     }
@@ -808,7 +847,6 @@
 
   ui.pause.addEventListener("click", async () => {
     if(!ac) return;
-    stopArranger();
     stopAll();
     setStatus("Stopped.");
   });
