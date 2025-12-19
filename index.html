@@ -385,7 +385,7 @@
 
   // Autonomous arranger
   let arrangerTimer = null;
-  let barsPerCheck = 8; // musical default: check every 8 bars
+  let barsPerCheck = 4; // musical default: check every 4 bars
 
   function setStatus(msg){ statusEl.textContent = msg; }
 
@@ -811,8 +811,6 @@
 
     const v = parseFloat(ui.variety.value);
     if (!(v > 0)) return;
-
-    if (Math.random() > v) return;
 
     shuffleWithIntensity(v);
     setStatus(`Variety: evolution tick (${v.toFixed(2)}) queued.`);
