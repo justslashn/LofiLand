@@ -204,7 +204,6 @@
 
             <h3 style="margin:10px 0 0 0;">CRT Controls</h3>
 
-
             <div class="control"><div>Glow</div><input id="glow" type="range" min="0" max="1" step="0.01" value="0.30"/><div class="val" id="glowV">0.30</div></div>
             <div class="control"><div>Vignette</div><input id="vignette" type="range" min="0" max="1" step="0.01" value="1.00"/><div class="val" id="vignetteV">1.00</div></div>
             <div class="control"><div>Rain</div><input id="rainOverlay" type="range" min="0" max="1" step="0.01" value="1.00"/><div class="val" id="rainOverlayV">1.00</div></div>
@@ -882,6 +881,16 @@
     requestAnimationFrame(drawWave);
   }
   requestAnimationFrame(drawWave);
+</script>
+<script>
+  // Register service worker for caching.
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").then(() => {
+      setStatus("Caching enabled.");
+    }).catch((err) => {
+      console.warn("SW registration failed", err);
+    });
+  }
 </script>
 </body>
 </html>
