@@ -19,7 +19,10 @@
     "drums_loop_17.ogg"
   ],
   "bass": [
-    "bass_loop_01.ogg"
+    "bass_loop_01.ogg",
+    "bass_loop_02.ogg",
+    "bass_loop_03.ogg",
+    "bass_loop_04.ogg"
   ],
   "chords": [
     "chords_loop_01.ogg",
