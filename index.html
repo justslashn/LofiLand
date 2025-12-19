@@ -14,7 +14,7 @@
       --line:rgba(103,217,255,.18);
       --shadow: rgba(0,0,0,.45);
       --radius:16px;
-      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
     }
     *{ box-sizing:border-box; }
     body{
@@ -205,7 +205,6 @@
 
             <h3 style="margin:10px 0 0 0;">CRT Controls</h3>
 
-
             <div class="control"><div>Glow</div><input id="glow" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="glowV">0.00</div></div>
             <div class="control"><div>Vignette</div><input id="vignette" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="vignetteV">0.00</div></div>
             <div class="control"><div>Rain</div><input id="rainOverlay" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="rainOverlayV">0.00</div></div>
@@ -254,6 +253,7 @@
   // ======================
 
   const STEMS = ["drums","bass","chords","melody"];
+  const STEM_WEIGHTS = { drums: 0.55, bass: 0.85, chords: 1.0, melody: 1.15 };
 
   const statusEl = $("status");
   const sceneLabel = $("sceneLabel");
@@ -749,53 +749,126 @@
     return (stemBuffers[s]?.length ?? 0) > 0;
   }
 
+  function weightedPick(list, weights){
+    if (!list.length) return null;
+    const total = list.reduce((sum, s) => sum + (weights[s] || 1), 0);
+    let r = Math.random() * total;
+    for (const s of list) {
+      r -= (weights[s] || 1);
+      if (r <= 0) return s;
+    }
+    return list[list.length - 1];
+  }
+
+  function pickChangeCount(v){
+    if (v < 0.34) return Math.random() < 0.75 ? 1 : 2;
+    if (v < 0.67) {
+      const r = Math.random();
+      if (r < 0.15) return 1;
+      if (r < 0.8) return 2;
+      return 3;
+    }
+    const r = Math.random();
+    if (r < 0.1) return 1;
+    if (r < 0.45) return 2;
+    return 3;
+  }
+
+  function selectStemsToChange(intensity){
+    const available = STEMS.filter(s => existsStem(s));
+    const maxChange = Math.max(0, available.length - 1);
+    if (maxChange === 0) return [];
+
+    const desired = pickChangeCount(intensity);
+    const target = Math.min(3, Math.min(desired, maxChange));
+    const pool = [...available];
+    const chosen = [];
+    while (chosen.length < target && pool.length) {
+      const pick = weightedPick(pool, STEM_WEIGHTS);
+      chosen.push(pick);
+      pool.splice(pool.indexOf(pick), 1);
+    }
+    return chosen;
+  }
+
+  function chooseMaskTarget(stem, intensity, prevOn){
+    if (stem === "drums") return true;
+    const baseOff = { bass: 0.15, chords: 0.25, melody: 0.45 }[stem] ?? 0.25;
+    const swing = baseOff * Math.max(0.35, intensity + 0.2);
+    const flip = Math.random() < swing;
+    if (flip) return !prevOn;
+    return prevOn ? Math.random() > swing : Math.random() > swing * 0.6;
+  }
+
   function shuffleWithIntensity(v){
     // v in [0,1] controls how "busy" the mask + swapping feels
     const prevArrangement = { ...arrangement };
-    const newArrangement = {
-      drums: true,
-      bass: existsStem("bass") ? (Math.random() > 0.15 * v) : false,
-      chords: existsStem("chords") ? (Math.random() > 0.25 * v) : false,
-      melody: existsStem("melody") ? (Math.random() > 0.45 * v) : false
-    };
-    arrangement = newArrangement;
-
-    const maskChanged = {};
-    STEMS.forEach(s => {
-      maskChanged[s] = arrangement[s] !== prevArrangement[s];
-    });
+    const chosen = selectStemsToChange(v);
+    const selected = new Set(chosen);
+    const newArrangement = { ...prevArrangement };
 
     const variantPlan = {};
     STEMS.forEach(s => {
       const curIdx = stemActive[s]?.variantIndex ?? 0;
-      let doSwap = false;
-      let nextIdx = curIdx;
-      if (stemChannelGain[s] && Math.random() <= v) {
+      variantPlan[s] = { doSwap: false, nextIdx: curIdx };
+      if (!selected.has(s)) return;
+
+      newArrangement[s] = chooseMaskTarget(s, v, prevArrangement[s]);
+
+      const swapChance = Math.min(1, 0.35 + v * 0.75 + (s === "melody" ? 0.1 : 0));
+      if (stemChannelGain[s] && Math.random() < swapChance) {
         const candidate = pickDifferentVariantIndex(s);
         if (candidate !== curIdx) {
-          doSwap = true;
-          nextIdx = candidate;
+          variantPlan[s] = { doSwap: true, nextIdx: candidate };
         }
       }
-      variantPlan[s] = { doSwap, nextIdx };
     });
+
+    arrangement = newArrangement;
 
     const changeFlags = {};
     STEMS.forEach(s => {
-      changeFlags[s] = !!maskChanged[s] || !!variantPlan[s].doSwap;
+      const maskChanged = arrangement[s] !== prevArrangement[s];
+      changeFlags[s] = maskChanged || variantPlan[s].doSwap;
     });
 
-    const changedStems = STEMS.filter(s => changeFlags[s]);
-    if (changedStems.length === STEMS.length) {
-      const preserveOrder = ["drums","bass","chords","melody"];
-      const keep = preserveOrder.find(s => changeFlags[s]);
-      if (keep) {
-        changeFlags[keep] = false;
-        maskChanged[keep] = false;
-        arrangement[keep] = prevArrangement[keep];
-        variantPlan[keep].doSwap = false;
-        variantPlan[keep].nextIdx = stemActive[keep]?.variantIndex ?? 0;
+    let changedStems = STEMS.filter(s => changeFlags[s]);
+    if (chosen.length > 0 && changedStems.length < chosen.length) {
+      const remaining = chosen.filter(s => !changeFlags[s]);
+      for (const s of remaining) {
+        const curIdx = stemActive[s]?.variantIndex ?? 0;
+        const candidate = pickDifferentVariantIndex(s);
+        if (candidate !== curIdx) {
+          variantPlan[s] = { doSwap: true, nextIdx: candidate };
+          changeFlags[s] = true;
+        } else if (arrangement[s] === prevArrangement[s]) {
+          arrangement[s] = !prevArrangement[s];
+          changeFlags[s] = true;
+        }
+        changedStems = STEMS.filter(x => changeFlags[x]);
+        if (changedStems.length >= chosen.length) break;
       }
+    }
+
+    const maxAllowedChanges = Math.min(3, Math.max(0, STEMS.length - 1));
+    if (changedStems.length > maxAllowedChanges) {
+      const toKeep = changedStems.slice(maxAllowedChanges);
+      toKeep.forEach(s => {
+        arrangement[s] = prevArrangement[s];
+        variantPlan[s].doSwap = false;
+        variantPlan[s].nextIdx = stemActive[s]?.variantIndex ?? 0;
+        changeFlags[s] = false;
+      });
+      changedStems = STEMS.filter(s => changeFlags[s]);
+    }
+
+    if (changedStems.length === STEMS.length && STEMS.length > 0) {
+      const keep = changedStems.find(s => s === "drums") || changedStems[0];
+      arrangement[keep] = prevArrangement[keep];
+      variantPlan[keep].doSwap = false;
+      variantPlan[keep].nextIdx = stemActive[keep]?.variantIndex ?? 0;
+      changeFlags[keep] = false;
+      changedStems = STEMS.filter(s => changeFlags[s]);
     }
 
     const when = nextLoopBoundaryTime();
@@ -827,7 +900,7 @@
     const v = parseFloat(ui.variety.value);
     const intensity = Math.max(v, SHUFFLE_INTENSITY);
     shuffleWithIntensity(intensity);
-    setStatus("Shuffle: strong mask + variation at next boundary.");
+    setStatus("Shuffle: strong mask+variation at next boundary.");
   }
 
   function startArranger(){
@@ -855,7 +928,7 @@
     if (Math.random() > v) return;
 
     shuffleWithIntensity(v);
-    setStatus(`Auto-variation (${v.toFixed(2)}): next boundary.`);
+    setStatus(`Variety: evolution tick (${v.toFixed(2)}) at next boundary.`);
   }
 
   ["trackVol","rainVol","convVol","vinylVol","muffle","wobble","variety","tilt"].forEach(k => {
