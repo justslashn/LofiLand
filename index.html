@@ -1,4 +1,3 @@
-```html
 <!doctype html>
 <html lang="en">
 <head>
@@ -13,7 +12,6 @@
       --ink:#cfe8ff;
       --muted:#6aa0c8;
       --line:rgba(103,217,255,.18);
-      --line2:rgba(103,217,255,.28);
       --shadow: rgba(0,0,0,.45);
       --radius:16px;
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -21,123 +19,61 @@
     *{ box-sizing:border-box; }
     body{
       margin:0;
-      background:
-        radial-gradient(1200px 700px at 35% 20%, rgba(103,217,255,.08), transparent 60%),
-        radial-gradient(900px 600px at 80% 75%, rgba(176,107,255,.08), transparent 55%),
-        var(--bg);
+      background: radial-gradient(1200px 700px at 35% 20%, rgba(103,217,255,.08), transparent 60%),
+                  radial-gradient(900px 600px at 80% 75%, rgba(176,107,255,.08), transparent 55%),
+                  var(--bg);
       color:var(--ink);
       font-family: var(--mono);
       letter-spacing:.2px;
     }
-
     .app{
-      max-width: 1100px;
-      margin: 22px auto;
-      padding: 16px;
+      max-width: 1180px;
+      margin: 28px auto;
+      padding: 18px;
       display:grid;
-      gap:14px;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 16px;
     }
-
     .frame{
-      background: linear-gradient(180deg, rgba(255,255,255,.04), transparent 40%), var(--panel);
+      background: linear-gradient(180deg, rgba(255,255,255,.04), transparent 40%),
+                  var(--panel);
       border: 1px solid var(--line);
       border-radius: var(--radius);
       box-shadow: 0 18px 40px var(--shadow);
       overflow:hidden;
       position:relative;
     }
-
-    .topbar{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding: 14px 14px 10px 14px;
-      border-bottom: 1px solid var(--line);
-    }
-    .title{
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: .6px;
-    }
-    .pill{
-      padding: 6px 10px;
-      border: 1px solid var(--line2);
-      background: rgba(0,0,0,.18);
-      border-radius: 999px;
-      font-size: 12px;
-      color: var(--muted);
-      min-width: 120px;
-      text-align:right;
-    }
-
-    .sceneWrap{
-      position:relative;
-      background:#02040a;
-    }
     .scene{
       aspect-ratio: 16 / 9;
-      width:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
       position:relative;
-      overflow:hidden;
+      background: #02040a;
     }
-    video#bgVideo{
-      width:100%;
-      height:100%;
-      object-fit:cover;
-      display:block;
-      filter: saturate(1.05) contrast(1.05);
-    }
-    canvas#sceneCanvas{
+    .scene canvas{ width:100%; height:100%; display:block; }
+    .scene .label{
       position:absolute;
-      inset:0;
-      width:100%;
-      height:100%;
-      display:block;
-      pointer-events:none;
-      mix-blend-mode: screen;
-      opacity: 0.22;
-    }
-    .sceneLabel{
-      position:absolute;
-      left: 12px;
-      bottom: 12px;
-      padding: 7px 10px;
-      border: 1px solid var(--line);
+      top:12px; left:12px;
+      padding:8px 10px;
+      border:1px solid var(--line);
       background: rgba(5,7,11,.55);
-      border-radius: 999px;
-      font-size: 12px;
-      color: var(--ink);
-    }
-
-    /* waveform: full width directly under video */
-    .wave{
-      padding: 10px 12px 12px 12px;
-      border-top: 1px solid var(--line);
-      background: rgba(0,0,0,.12);
-    }
-    canvas#wave{
-      width:100%;
-      height:82px;
-      display:block;
       border-radius: 12px;
-      border: 1px solid rgba(103,217,255,.10);
-      background: rgba(3,6,12,.55);
+      font-size: 12px;
+      color: var(--muted);
     }
-
-    .controls{
+    .row{
       display:grid;
-      grid-template-columns: 1.2fr 1fr;
-      gap: 14px;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
       padding: 14px;
     }
-
     .panel{
       background: var(--panel2);
       border: 1px solid var(--line);
       border-radius: var(--radius);
       padding: 12px;
     }
-
     h3{
       margin:0 0 10px 0;
       font-size: 12px;
@@ -145,138 +81,152 @@
       text-transform: uppercase;
       letter-spacing: 1px;
     }
-
-    .btnRow{
+    .btns{
       display:flex;
-      flex-wrap:wrap;
       gap:10px;
-      align-items:center;
+      flex-wrap:wrap;
+      margin-bottom: 10px;
     }
-
     button, select{
-      border-radius: 12px;
-      font-family: var(--mono);
-      font-size: 12px;
-    }
-
-    button{
       background: rgba(103,217,255,.08);
       border: 1px solid var(--line);
       color: var(--ink);
       padding: 10px 12px;
+      border-radius: 12px;
       cursor:pointer;
+      font-family: var(--mono);
+      font-size: 12px;
+      width:100%;
     }
-    button:hover{ border-color: rgba(103,217,255,.40); }
-    button:active{ transform: translateY(1px); }
-
-    /* readable dropdown */
-    select{
-      background: rgba(3,6,12,.92);
-      border: 1px solid rgba(103,217,255,.35);
-      color: var(--ink);
-      padding: 10px 36px 10px 12px;
-      cursor:pointer;
-      appearance:none;
-      -webkit-appearance:none;
-      -moz-appearance:none;
-      background-image:
-        linear-gradient(45deg, transparent 50%, rgba(207,232,255,.95) 50%),
-        linear-gradient(135deg, rgba(207,232,255,.95) 50%, transparent 50%),
-        linear-gradient(to right, rgba(103,217,255,.18), rgba(103,217,255,.18));
-      background-position:
-        calc(100% - 18px) calc(50% - 3px),
-        calc(100% - 12px) calc(50% - 3px),
-        calc(100% - 34px) 50%;
-      background-size: 6px 6px, 6px 6px, 1px 18px;
-      background-repeat:no-repeat;
-    }
-    select:focus{
-      outline:none;
-      border-color: rgba(103,217,255,.65);
-      box-shadow: 0 0 0 3px rgba(103,217,255,.14);
-    }
-    option{ background:#05070b; color:var(--ink); }
-
-    .grid{ display:grid; gap:10px; margin-top: 10px; }
+    button:hover{ border-color: rgba(103,217,255,.35); }
+    .grid{ display:grid; gap:10px; }
     .control{
       display:grid;
-      grid-template-columns: 120px 1fr 52px;
+      grid-template-columns: 120px 1fr 46px;
       align-items:center;
       gap:10px;
       font-size: 12px;
     }
     input[type="range"]{ width:100%; }
     .val{ color: var(--muted); text-align:right; }
-
-    .sceneBtns{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-top: 10px;
+    .wave{
+      height: 90px;
+      padding: 12px 14px;
+      border-top: 1px solid var(--line);
+      background: rgba(0,0,0,.12);
     }
-
-    @media (max-width: 900px){
-      .controls{ grid-template-columns: 1fr; }
-      .pill{ min-width: 90px; }
+    .footer{
+      grid-column: 1 / -1;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:16px;
+    }
+    .hint{
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .tag{
+      display:inline-block;
+      padding: 2px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      margin-right: 6px;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 11px;
     }
   </style>
 </head>
 <body>
   <div class="app">
     <div class="frame">
-      <div class="topbar">
-        <div class="title">LofiLand</div>
-        <div class="pill" id="status">Idle.</div>
+      <div class="scene">
+        <canvas id="scene"></canvas>
+        <div class="label" id="sceneLabel">Scene: Ramen Rain</div>
       </div>
 
-      <div class="sceneWrap">
-        <div class="scene">
-          <video id="bgVideo" muted playsinline loop preload="auto"></video>
-          <canvas id="sceneCanvas"></canvas>
-          <div class="sceneLabel" id="sceneLabel">Scene: Ramen Rain</div>
-        </div>
-
-        <div class="wave">
-          <canvas id="wave" width="1200" height="90"></canvas>
-        </div>
+      <div class="wave">
+        <canvas id="wave" width="1200" height="90"></canvas>
       </div>
 
-      <div class="controls">
+      <div class="row">
         <div class="panel">
-          <div class="btnRow">
-            <select id="pack">
-              <option value="lofi">Lo-fi</option>
-              <option value="deepfi">Deepfi</option>
-              <option value="spacehop">Spacehop</option>
-            </select>
-            <button id="play">Play</button>
-            <button id="pause">Pause</button>
-            <button id="shuffle">Soft Shuffle</button>
-          </div>
-
-          <div class="sceneBtns">
+          <h3>Scene Select</h3>
+          <div class="btns">
             <button data-scene="ramen">Ramen Rain</button>
             <button data-scene="capsule">Capsule Desk</button>
             <button data-scene="submarine">Submarine Drift</button>
           </div>
+
+          <h3>Vibe Pack</h3>
+          <div class="btns">
+            <select id="pack">
+              <option value="lofi">Lofi Trip-hop</option>
+              <option value="ambient">Ambient</option>
+              <option value="spacehop">Spacehop</option>
+            </select>
+            <button id="play">Play</button>
+            <button id="pause">Pause</button>
+            <button id="shuffle">Shuffle</button>
+          </div>
+
+          <div class="hint">
+            <span class="tag">manifest-driven</span>
+            <span class="tag">variants</span>
+            <span class="tag">autonomous variety</span>
+            <div style="margin-top:8px">
+              Click Play to unlock audio. Variety gently evolves the track over time.
+            </div>
+          </div>
         </div>
 
         <div class="panel">
-          <h3>Mix</h3>
+          <h3>Vibe Mix</h3>
           <div class="grid">
-            <div class="control"><div>Music</div><input id="trackVol" type="range" min="0" max="1" step="0.01" value="0.80"/><div class="val" id="trackVolV">0.80</div></div>
+            <div class="control"><div>Track</div><input id="trackVol" type="range" min="0" max="1" step="0.01" value="0.8"/><div class="val" id="trackVolV">0.80</div></div>
             <div class="control"><div>Rain</div><input id="rainVol" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="rainVolV">0.35</div></div>
-            <div class="control"><div>Conversation</div><input id="convVol" type="range" min="0" max="1" step="0.01" value="0.30"/><div class="val" id="convVolV">0.30</div></div>
+            <div class="control"><div>Conversation</div><input id="convVol" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="convVolV">0.35</div></div>
             <div class="control"><div>Vinyl</div><input id="vinylVol" type="range" min="0" max="1" step="0.01" value="0.15"/><div class="val" id="vinylVolV">0.15</div></div>
 
             <div class="control"><div>Variety</div><input id="variety" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="varietyV">0.35</div></div>
 
-            <h3 style="margin:12px 0 0 0;">CRT</h3>
+            <h3 style="margin:10px 0 0 0;">CRT Controls</h3>
             <div class="control"><div>Muffle</div><input id="muffle" type="range" min="0" max="1" step="0.01" value="0.25"/><div class="val" id="muffleV">0.25</div></div>
             <div class="control"><div>Wobble</div><input id="wobble" type="range" min="0" max="1" step="0.01" value="0.20"/><div class="val" id="wobbleV">0.20</div></div>
             <div class="control"><div>Glow</div><input id="glow" type="range" min="0" max="1" step="0.01" value="0.30"/><div class="val" id="glowV">0.30</div></div>
             <div class="control"><div>Vignette</div><input id="vignette" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="vignetteV">0.35</div></div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <div class="panel" style="margin:14px;">
+        <h3>Pack Manifests</h3>
+        <div class="hint">
+          Each pack has <span class="tag">packs/&lt;pack&gt;/manifest.json</span> listing filenames per stem.
+          Stems can be <span class="tag">.ogg</span>, <span class="tag">.wav</span>, etc, because the manifest provides exact names.
+        </div>
+      </div>
+
+      <div class="panel" style="margin:0 14px 14px 14px;">
+        <h3>Status</h3>
+        <div class="hint" id="status">Idle.</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="panel">
+        <h3>Notes</h3>
+        <div class="hint">
+          Variety controls autonomous evolution. Shuffle is an intentional nudge.
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Tip</h3>
+        <div class="hint">
+          Try Variety 0.25–0.45 for “alive but not restless”.
         </div>
       </div>
     </div>
@@ -286,7 +236,7 @@
   const $ = (id) => document.getElementById(id);
 
   // ===== CDN CONFIG =====
-  // If assets feel cached, set REF to a commit hash.
+  // If an asset update seems cached, set REF to a commit hash.
   const USER = "justslashn";
   const REPO = "LofiLand";
   const REF  = "main";
@@ -294,11 +244,9 @@
   // ======================
 
   const STEMS = ["drums","bass","chords","melody"];
-  const BARS_PER_LOOP = 4; // your loop files are treated as 4 bars unless you change this
 
   const statusEl = $("status");
   const sceneLabel = $("sceneLabel");
-  const bgVideo = $("bgVideo");
 
   const ui = {
     pack: $("pack"),
@@ -330,61 +278,22 @@
     vignetteV: $("vignetteV"),
   };
 
-  function setStatus(msg){ statusEl.textContent = msg; }
-
   function bindValue(el, out){
     const sync = () => out.textContent = Number(el.value).toFixed(2);
     el.addEventListener("input", sync);
     sync();
   }
+  bindValue(ui.trackVol, uiVals.trackVolV);
+  bindValue(ui.rainVol, uiVals.rainVolV);
+  bindValue(ui.convVol, uiVals.convVolV);
+  bindValue(ui.vinylVol, uiVals.vinylVolV);
+  bindValue(ui.variety, uiVals.varietyV);
+  bindValue(ui.muffle, uiVals.muffleV);
+  bindValue(ui.wobble, uiVals.wobbleV);
+  bindValue(ui.glow, uiVals.glowV);
+  bindValue(ui.vignette, uiVals.vignetteV);
 
-  Object.entries({
-    trackVol: "trackVolV",
-    rainVol: "rainVolV",
-    convVol: "convVolV",
-    vinylVol: "vinylVolV",
-    variety: "varietyV",
-    muffle: "muffleV",
-    wobble: "wobbleV",
-    glow: "glowV",
-    vignette: "vignetteV"
-  }).forEach(([k, vk]) => bindValue(ui[k], uiVals[vk]));
-
-  // ===== Scene video mapping =====
-  // Put your mp4s here if/when you add them:
-  // e.g. /scenes/ramen.mp4 in your repo.
-  const SCENE_VIDEOS = {
-    ramen: `${CDN}scenes/ramen.mp4`,
-    capsule: `${CDN}scenes/capsule.mp4`,
-    submarine: `${CDN}scenes/submarine.mp4`
-  };
-  // ===============================
-
-  let sceneMode = "ramen";
-  function setScene(mode){
-    sceneMode = mode;
-    sceneLabel.textContent =
-      "Scene: " + (mode === "ramen" ? "Ramen Rain" : mode === "capsule" ? "Capsule Desk" : "Submarine Drift");
-
-    // Video is muted so autoplay works. Your music comes from stems.
-    const src = SCENE_VIDEOS[mode];
-    bgVideo.src = src;
-    bgVideo.muted = true;
-    bgVideo.loop = true;
-    bgVideo.playsInline = true;
-
-    // Try to play (won’t throw if blocked)
-    bgVideo.play().catch(() => {});
-  }
-
-  document.querySelectorAll("button[data-scene]").forEach(btn => {
-    btn.addEventListener("click", () => setScene(btn.dataset.scene));
-  });
-
-  // Start with a scene
-  setScene("ramen");
-
-  // ===== Audio engine =====
+  // Audio Engine
   let ac = null;
   let master = null;
 
@@ -397,27 +306,37 @@
   let analyser = null;
   let data = null;
 
+  // FX buffers + sources
   let fxBuffers = {};
   let fxSources = {};
 
+  // Manifest + stem buffers
+  let manifest = {};
+  let stemFiles = { drums: [], bass: [], chords: [], melody: [] };
   let stemBuffers = { drums: [], bass: [], chords: [], melody: [] };
+
+  // Stem playback
   let stemChannelGain = {};
   let stemActive = {}; // { stem: { src, gainNode, variantIndex } }
   let arrangement = { drums:true, bass:true, chords:true, melody:true };
 
+  // Timing
   let isPlaying = false;
   let loopDur = 0;
   let playStartTime = 0;
 
-  let arrangerTimeout = null;
-  let arrangerInterval = null;
+  // Autonomous arranger
+  let arrangerTimer = null;
+  let barsPerCheck = 8; // musical default: check every 8 bars
+
+  function setStatus(msg){ statusEl.textContent = msg; }
 
   async function ensureAudio(){
     if(ac) return;
     ac = new (window.AudioContext || window.webkitAudioContext)();
 
     master = ac.createGain();
-    master.gain.value = 0.9;
+    master.gain.value = MASTER_LEVEL;
     master.connect(ac.destination);
 
     trackBus = ac.createGain();
@@ -475,22 +394,27 @@
   }
 
   function stopAll(){
+    const now = ac ? ac.currentTime : 0;
+
     for (const k of Object.keys(fxSources)) {
-      try { fxSources[k].stop(); } catch {}
+      const src = fxSources[k];
+      try {
+        const t = Math.max(now, src?._startTime ?? now);
+        src.stop(t);
+      } catch {}
     }
     fxSources = {};
 
     for (const s of Object.keys(stemActive)) {
-      try { stemActive[s].src.stop(); } catch {}
+      const src = stemActive[s]?.src;
+      try {
+        const t = Math.max(now, src?._startTime ?? now);
+        src.stop(t);
+      } catch {}
     }
     stemActive = {};
 
     isPlaying = false;
-  }
-
-  function stopArranger(){
-    if(arrangerTimeout){ clearTimeout(arrangerTimeout); arrangerTimeout = null; }
-    if(arrangerInterval){ clearInterval(arrangerInterval); arrangerInterval = null; }
   }
 
   function nextLoopBoundaryTime(){
@@ -506,7 +430,7 @@
     if (stemActive.chords?.src) wobbleGain.connect(stemActive.chords.src.playbackRate);
   }
 
-  function startStem(stemName, variantIndex, when, fadeSeconds = 0.12){
+  function startStem(stemName, variantIndex, when, fadeSeconds = DEFAULT_FADE){
     const bufArr = stemBuffers[stemName];
     if (!bufArr || bufArr.length === 0) return;
 
@@ -515,6 +439,7 @@
     const g = ac.createGain();
     g.gain.setValueAtTime(0, when);
     g.gain.linearRampToValueAtTime(1, when + fadeSeconds);
+
     g.connect(stemChannelGain[stemName]);
 
     const src = ac.createBufferSource();
@@ -522,6 +447,7 @@
     src.loop = true;
     src.connect(g);
     src.start(when);
+    src._startTime = when;
 
     const old = stemActive[stemName];
     if (old?.gainNode && old?.src) {
@@ -545,15 +471,13 @@
     return next;
   }
 
-  function existsStem(s){
-    return (stemBuffers[s]?.length ?? 0) > 0;
-  }
-
   async function loadPack(packName){
     await ensureAudio();
     stopArranger();
     stopAll();
 
+    manifest = {};
+    stemFiles = { drums: [], bass: [], chords: [], melody: [] };
     stemBuffers = { drums: [], bass: [], chords: [], melody: [] };
     fxBuffers = {};
 
@@ -562,19 +486,22 @@
     const manifestUrl = `${packBase}manifest.json`;
 
     setStatus("Loading manifest...");
-    const manifest = await fetchJson(manifestUrl);
+    manifest = await fetchJson(manifestUrl);
 
-    const stemFiles = {};
-    for (const s of STEMS) stemFiles[s] = Array.isArray(manifest[s]) ? manifest[s] : [];
+    for (const s of STEMS) {
+      const arr = Array.isArray(manifest[s]) ? manifest[s] : [];
+      stemFiles[s] = arr;
+    }
 
-    if ((stemFiles.drums?.length ?? 0) === 0) {
+    if (stemFiles.drums.length === 0) {
       throw new Error(`Manifest has no "drums" entries: ${manifestUrl}`);
     }
 
-    setStatus("Loading stems...");
+    setStatus("Loading stem buffers...");
     for (const s of STEMS) {
+      const files = stemFiles[s];
       stemBuffers[s] = [];
-      for (const f of stemFiles[s]) {
+      for (const f of files) {
         stemBuffers[s].push(await loadBuffer(packBase + f));
       }
     }
@@ -597,24 +524,12 @@
     setStatus(`Loaded ${packName}. Variants: ${counts}`);
   }
 
-  function updateAudioFromUI(){
-    if(!ac) return;
-
-    trackBus.gain.setTargetAtTime(parseFloat(ui.trackVol.value), ac.currentTime, 0.03);
-    fxRain.gain.setTargetAtTime(parseFloat(ui.rainVol.value), ac.currentTime, 0.03);
-    fxConv.gain.setTargetAtTime(parseFloat(ui.convVol.value), ac.currentTime, 0.03);
-    fxVinyl.gain.setTargetAtTime(parseFloat(ui.vinylVol.value), ac.currentTime, 0.03);
-
-    const m = parseFloat(ui.muffle.value);
-    const freq = 800 + (16000 - 800) * Math.pow(1 - m, 2.2);
-    filter.frequency.setTargetAtTime(freq, ac.currentTime, 0.05);
-
-    const w = parseFloat(ui.wobble.value);
-    wobbleGain.gain.setTargetAtTime(w * 0.004, ac.currentTime, 0.05);
-  }
-
   function startAll(){
     if(isPlaying) return;
+
+    // restore output in case we hard-muted on pause
+    master.gain.cancelScheduledValues(ac.currentTime);
+    master.gain.setValueAtTime(MASTER_LEVEL, ac.currentTime);
 
     const t0 = ac.currentTime + 0.10;
     playStartTime = t0;
@@ -636,16 +551,38 @@
     fxSources.rain  = makeLoopSource(fxBuffers.rain, fxRain);
     fxSources.conv  = makeLoopSource(fxBuffers.conv, fxConv);
     fxSources.vinyl = makeLoopSource(fxBuffers.vinyl, fxVinyl);
-    Object.values(fxSources).forEach(src => src.start(t0));
+    Object.values(fxSources).forEach(src => { src.start(t0); src._startTime = t0; });
 
     connectWobbleToActive();
 
     isPlaying = true;
     setStatus("Playing.");
+
     startArranger();
   }
 
-  function shuffleWithIntensity(v){
+  function updateAudioFromUI(){
+    if(!ac) return;
+
+    trackBus.gain.setTargetAtTime(parseFloat(ui.trackVol.value), ac.currentTime, 0.03);
+    fxRain.gain.setTargetAtTime(parseFloat(ui.rainVol.value), ac.currentTime, 0.03);
+    fxConv.gain.setTargetAtTime(parseFloat(ui.convVol.value), ac.currentTime, 0.03);
+    fxVinyl.gain.setTargetAtTime(parseFloat(ui.vinylVol.value), ac.currentTime, 0.03);
+
+    const m = parseFloat(ui.muffle.value);
+    const freq = 800 + (16000 - 800) * Math.pow(1 - m, 2.2);
+    filter.frequency.setTargetAtTime(freq, ac.currentTime, 0.05);
+
+    const w = parseFloat(ui.wobble.value);
+    wobbleGain.gain.setTargetAtTime(w * 0.004, ac.currentTime, 0.05);
+  }
+
+  function existsStem(s){
+    return (stemBuffers[s]?.length ?? 0) > 0;
+  }
+
+  function shuffleWithIntensity(v, fadeSeconds = DEFAULT_FADE){
+    // v in [0,1] controls how "busy" the mask + swapping feels
     arrangement = {
       drums: true,
       bass: existsStem("bass") ? (Math.random() > 0.15 * v) : false,
@@ -653,11 +590,13 @@
       melody: existsStem("melody") ? (Math.random() > 0.45 * v) : false
     };
 
+    // Apply mask smoothly
     for (const s of STEMS) {
       if (!stemChannelGain[s]) continue;
       stemChannelGain[s].gain.setTargetAtTime(arrangement[s] ? 1 : 0, ac.currentTime, 0.08);
     }
 
+    // Swap variants on next loop boundary, per-stem probability influenced by v
     const when = nextLoopBoundaryTime();
     for (const s of STEMS) {
       if (!stemChannelGain[s]) continue;
@@ -665,71 +604,51 @@
 
       const nextIdx = pickDifferentVariantIndex(s);
       const curIdx = stemActive[s]?.variantIndex ?? 0;
-      if (nextIdx !== curIdx) startStem(s, nextIdx, when, 0.12);
+      if (nextIdx !== curIdx) startStem(s, nextIdx, when, fadeSeconds);
     }
 
     setTimeout(connectWobbleToActive, 150);
   }
 
-  function forceOneSwap(){
-    const when = nextLoopBoundaryTime();
-    const candidates = STEMS.filter(s => stemChannelGain[s] && (stemBuffers[s]?.length ?? 0) > 1);
-    if(candidates.length === 0){
-      shuffleWithIntensity(1.0);
-      return;
-    }
-    const pick = candidates[Math.floor(Math.random() * candidates.length)];
-    const nextIdx = pickDifferentVariantIndex(pick);
-    const curIdx = stemActive[pick]?.variantIndex ?? 0;
-    if(nextIdx !== curIdx) startStem(pick, nextIdx, when, 0.12);
-
-    setTimeout(connectWobbleToActive, 150);
+  function shuffleNow(){
+    if(!isPlaying) return;
+    // Manual shuffle uses full intensity (1.0), but still uses the "soft" logic
+    shuffleWithIntensity(1.0);
+    setStatus("Shuffled: mask + variants (next boundary).");
   }
 
   function startArranger(){
     stopArranger();
-    if(!loopDur || !isFinite(loopDur) || loopDur <= 0) return;
+    if (!loopDur || !isFinite(loopDur) || loopDur <= 0) return;
 
-    // Every 4 bars: derive bar duration from loop duration.
-    const barDur = loopDur / BARS_PER_LOOP;
-    const intervalMs = barDur * 4 * 1000;
+    const intervalMs = loopDur * barsPerCheck * 1000;
+    arrangerTimer = setInterval(arrangerTick, intervalMs);
+  }
 
-    const now = ac.currentTime;
-    const elapsed = Math.max(0, now - playStartTime);
-
-    const barsElapsed = elapsed / barDur;
-    const next4 = Math.ceil(barsElapsed / 4) * 4;
-    const firstWhen = playStartTime + next4 * barDur;
-
-    const delayMs = Math.max(0, (firstWhen - now) * 1000);
-
-    arrangerTimeout = setTimeout(() => {
-      arrangerTick();
-      arrangerInterval = setInterval(arrangerTick, intervalMs);
-    }, delayMs);
+  function stopArranger(){
+    if(arrangerTimer){
+      clearInterval(arrangerTimer);
+      arrangerTimer = null;
+    }
   }
 
   function arrangerTick(){
     if(!isPlaying) return;
 
     const v = parseFloat(ui.variety.value);
-    if(!(v > 0)) return;
+    if (!(v > 0)) return;
 
-    if(v >= 0.999){
-      forceOneSwap();
-      setStatus("Auto-variation (1.00): next boundary.");
-      return;
-    }
+    // chance that anything happens this cycle
+    if (Math.random() > v) return;
 
-    if(Math.random() > v) return;
     shuffleWithIntensity(v);
     setStatus(`Auto-variation (${v.toFixed(2)}): next boundary.`);
   }
 
-  // ===== Wire UI events (buttons must work) =====
   ["trackVol","rainVol","convVol","vinylVol","muffle","wobble","variety"].forEach(k => {
     ui[k].addEventListener("input", () => {
       updateAudioFromUI();
+      // if user changes variety mid-play, restart the arranger so it feels responsive
       if (k === "variety" && isPlaying) startArranger();
     });
   });
@@ -738,42 +657,35 @@
     try{
       await ensureAudio();
       if(ac.state === "suspended") await ac.resume();
-
-      // ensure background video keeps playing
-      bgVideo.play().catch(() => {});
-
       await loadPack(ui.pack.value);
-      updateAudioFromUI();
       startAll();
+      updateAudioFromUI();
     }catch(err){
       setStatus("Error: " + err.message);
       console.error(err);
     }
   });
 
-  ui.pause.addEventListener("click", () => {
+  ui.pause.addEventListener("click", async () => {
     if(!ac) return;
     stopArranger();
     stopAll();
     setStatus("Paused.");
   });
 
-  ui.shuffle.addEventListener("click", () => {
-    if(!isPlaying) return;
-    shuffleWithIntensity(1.0);
-    setStatus("Soft shuffle: next boundary.");
-  });
-
   ui.pack.addEventListener("change", async () => {
     if(!ac) return;
     await loadPack(ui.pack.value);
-    updateAudioFromUI();
     if(isPlaying) startAll();
+    updateAudioFromUI();
   });
 
-  // ===== Minimal CRT overlay (canvas) =====
-  const sceneCanvas = $("sceneCanvas");
+  ui.shuffle.addEventListener("click", shuffleNow);
+
+  // Scenes (animated placeholders)
+  const sceneCanvas = $("scene");
   const sctx = sceneCanvas.getContext("2d");
+
   function resizeCanvasToCSS(c){
     const r = c.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
@@ -782,78 +694,107 @@
   }
   window.addEventListener("resize", () => resizeCanvasToCSS(sceneCanvas));
 
-  let tt = 0;
-  function drawCRT(){
+  let sceneMode = "ramen";
+  document.querySelectorAll("button[data-scene]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      sceneMode = btn.dataset.scene;
+      sceneLabel.textContent =
+        "Scene: " +
+        (sceneMode === "ramen" ? "Ramen Rain" : sceneMode === "capsule" ? "Capsule Desk" : "Submarine Drift");
+    });
+  });
+
+  let t = 0;
+  function drawScene(){
     resizeCanvasToCSS(sceneCanvas);
     const w = sceneCanvas.width, h = sceneCanvas.height;
-    tt += 0.016;
+    t += 0.016;
 
     const glow = parseFloat(ui.glow.value);
-    const vig = parseFloat(ui.vignette.value);
+    const vign = parseFloat(ui.vignette.value);
+    const rainAmt = parseFloat(ui.rainVol.value);
 
-    sctx.clearRect(0,0,w,h);
+    sctx.fillStyle = "#02040a";
+    sctx.fillRect(0,0,w,h);
 
-    // scanlines
-    sctx.globalAlpha = 0.08 + glow * 0.10;
-    sctx.fillStyle = "rgba(120,220,255,0.18)";
-    for(let y=0;y<h;y+=6){
-      sctx.fillRect(0,y,w,1);
+    sctx.globalAlpha = 0.10 + glow * 0.18;
+    if(sceneMode === "ramen") sctx.fillStyle = "#1b5cff";
+    if(sceneMode === "capsule") sctx.fillStyle = "#b06bff";
+    if(sceneMode === "submarine") sctx.fillStyle = "#35ffb2";
+    sctx.fillRect(0,0,w,h);
+    sctx.globalAlpha = 1;
+
+    const drops = Math.floor(120 * (0.2 + rainAmt));
+    sctx.strokeStyle = "rgba(200,240,255,0.22)";
+    sctx.lineWidth = 1;
+    for(let i=0;i<drops;i++){
+      const x = (Math.sin(i*12.31 + t*0.6) * 0.5 + 0.5) * w;
+      const y = ((i*97 + t*260) % (h+200)) - 200;
+      const len = 30 + rainAmt*50;
+      sctx.beginPath();
+      sctx.moveTo(x,y);
+      sctx.lineTo(x+8,y+len);
+      sctx.stroke();
     }
 
-    // subtle noise
-    sctx.globalAlpha = 0.06 + glow * 0.06;
-    for(let i=0;i<160;i++){
-      const x = ((i*97 + tt*400) % w);
-      const y = ((i*53 + tt*260) % h);
-      sctx.fillRect(x,y,2,1);
+    if(sceneMode === "submarine"){
+      sctx.fillStyle = "rgba(255,255,255,0.12)";
+      for(let i=0;i<8;i++){
+        const x = (w * ((i*0.13 + t*0.03) % 1));
+        const y = h*0.35 + Math.sin(t*0.7 + i)*h*0.12;
+        sctx.beginPath();
+        sctx.ellipse(x,y, 14, 6, 0, 0, Math.PI*2);
+        sctx.fill();
+      }
     }
 
-    // vignette
-    sctx.globalAlpha = 0.25 + vig * 0.55;
-    const grd = sctx.createRadialGradient(w*0.5,h*0.5, Math.min(w,h)*0.25, w*0.5,h*0.5, Math.max(w,h)*0.68);
+    if(sceneMode === "capsule"){
+      const cx = w*0.78, cy = h*0.42, r = Math.min(w,h)*0.18;
+      sctx.globalAlpha = 0.25 + glow*0.25;
+      sctx.fillStyle = "rgba(140,200,255,0.35)";
+      sctx.beginPath(); sctx.arc(cx,cy,r,0,Math.PI*2); sctx.fill();
+      sctx.globalAlpha = 1;
+    }
+
+    sctx.globalAlpha = 0.35 + vign*0.45;
+    const grd = sctx.createRadialGradient(w*0.5,h*0.5, Math.min(w,h)*0.25, w*0.5,h*0.5, Math.max(w,h)*0.65);
     grd.addColorStop(0, "rgba(0,0,0,0)");
     grd.addColorStop(1, "rgba(0,0,0,1)");
     sctx.fillStyle = grd;
     sctx.fillRect(0,0,w,h);
     sctx.globalAlpha = 1;
 
-    requestAnimationFrame(drawCRT);
+    requestAnimationFrame(drawScene);
   }
-  requestAnimationFrame(drawCRT);
+  requestAnimationFrame(drawScene);
 
-  // ===== Waveform =====
+  // Waveform
   const waveCanvas = $("wave");
   const wctx = waveCanvas.getContext("2d");
   function drawWave(){
-    const r = waveCanvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    const ww = Math.max(300, Math.floor(r.width * dpr));
-    const hh = Math.max(60, Math.floor(r.height * dpr));
-    if (waveCanvas.width !== ww) waveCanvas.width = ww;
-    if (waveCanvas.height !== hh) waveCanvas.height = hh;
-
-    wctx.clearRect(0,0,ww,hh);
-    wctx.fillStyle = "rgba(103,217,255,0.10)";
-    wctx.fillRect(0,0,ww,hh);
+    const w = waveCanvas.width, h = waveCanvas.height;
+    wctx.clearRect(0,0,w,h);
+    wctx.fillStyle = "rgba(103,217,255,0.12)";
+    wctx.fillRect(0,0,w,h);
 
     if(analyser && data){
       analyser.getByteTimeDomainData(data);
-      wctx.strokeStyle = "rgba(207,232,255,0.80)";
+      wctx.strokeStyle = "rgba(207,232,255,0.75)";
       wctx.lineWidth = 2;
       wctx.beginPath();
       for(let i=0;i<data.length;i++){
-        const x = (i/(data.length-1))*ww;
+        const x = (i/(data.length-1))*w;
         const v = (data[i]-128)/128;
-        const y = hh/2 + v*(hh*0.33);
+        const y = h/2 + v*(h*0.35);
         if(i===0) wctx.moveTo(x,y);
         else wctx.lineTo(x,y);
       }
       wctx.stroke();
     }else{
-      wctx.strokeStyle = "rgba(207,232,255,0.30)";
+      wctx.strokeStyle = "rgba(207,232,255,0.35)";
       wctx.beginPath();
-      wctx.moveTo(0,hh/2);
-      wctx.lineTo(ww,hh/2);
+      wctx.moveTo(0,h/2);
+      wctx.lineTo(w,h/2);
       wctx.stroke();
     }
 
@@ -863,4 +804,3 @@
 </script>
 </body>
 </html>
-```
