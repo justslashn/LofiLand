@@ -34,7 +34,7 @@ This repository is maintained by a single developer.
 
 \## Output Rules
 
-\- If asked for a file, output the full file contents.
+\- After making any changes, output full contents of index.html and any other changed files in .md format.
 
 \- Do not output diffs unless explicitly requested.
 
@@ -59,6 +59,4 @@ This repository is maintained by a single developer.
 \- Avoid cascading UI changes.
 
 \- Audio playback must not regress when adding features.
-
-
 

@@ -168,20 +168,20 @@
         <div class="panel">
           <h3>Scene Select</h3>
           <div class="btns">
-            <button data-scene="loaf" data-video="video/classic.mp4">loaf island</button>
+            <button data-scene="loaf">loaf island</button>
             <button data-scene="hello" data-video="video/Hello_World.mp4">hello world</button>
-            <button data-scene="deepfi" data-video="video/deepfi.mp4">deep fi</button>
+            <button data-scene="undersea" data-video="video/undersea.mp4">undersea</button>
           </div>
 
           <h3>Vibe Pack</h3>
           <div class="btns" id="packButtons">
-            <button data-pack="loaf" class="active">loaf</button>
-            <button data-pack="ambient">ambient</button>
+            <button data-pack="lofi" class="active">classic</button>
+            <button data-pack="deep fi">deep fi</button>
             <button data-pack="spacehop">space-hop</button>
           </div>
           <div class="btns">
             <button id="play">Play</button>
-            <button id="pause">Pause</button>
+            <button id="pause">Stop</button>
             <button id="shuffle">Shuffle</button>
           </div>
 
@@ -301,7 +301,7 @@
   let currentPack =
     packButtons.find(btn => btn.classList.contains("active"))?.dataset.pack ||
     packButtons[0]?.dataset.pack ||
-    "loaf";
+    "lofi";
 
   function bindValue(el, out){
     const sync = () => out.textContent = Number(el.value).toFixed(2);
@@ -370,7 +370,7 @@
 
   // Stem playback
   let stemChannelGain = {};
-  let stemActive = {}; // { stem: { src, gainNode, variantIndex } }
+  let stemActive = {}; // { stem: { src, gainNode, variantIndex, _startTime } }
   let arrangement = { drums:true, bass:true, chords:true, melody:true };
 
   // Timing
@@ -460,24 +460,39 @@
     });
   }
 
-  function makeLoopSource(buffer, destination){
+  function makeLoopSource(buffer, destination, startTime){
     const src = ac.createBufferSource();
     src.buffer = buffer;
     src.loop = true;
+    src._startTime = startTime;
     src.connect(destination);
     return src;
   }
 
   function stopAll(){
+    const now = ac ? ac.currentTime : 0;
     for (const k of Object.keys(fxSources)) {
-      try { fxSources[k].stop(); } catch {}
+      const src = fxSources[k];
+      try {
+        const stopAt = Math.max(now, src?._startTime || now);
+        src?.stop(stopAt);
+      } catch {}
     }
     fxSources = {};
 
     for (const s of Object.keys(stemActive)) {
-      try { stemActive[s].src.stop(); } catch {}
+      const entry = stemActive[s];
+      try {
+        const stopAt = Math.max(now, entry?.src?._startTime || now);
+        entry?.src?.stop(stopAt);
+      } catch {}
     }
     stemActive = {};
+
+    if (master && ac) {
+      master.gain.cancelScheduledValues(ac.currentTime);
+      master.gain.setValueAtTime(0, ac.currentTime);
+    }
 
     isPlaying = false;
   }
@@ -510,6 +525,7 @@
     const src = ac.createBufferSource();
     src.buffer = buf;
     src.loop = true;
+    src._startTime = when;
     src.connect(g);
     src.start(when);
 
@@ -517,7 +533,10 @@
     if (old?.gainNode && old?.src) {
       old.gainNode.gain.setValueAtTime(old.gainNode.gain.value, when);
       old.gainNode.gain.linearRampToValueAtTime(0, when + fadeSeconds);
-      try { old.src.stop(when + fadeSeconds + 0.03); } catch {}
+      try {
+        const stopAt = Math.max(when, old.src._startTime || when);
+        old.src.stop(stopAt + 0.03);
+      } catch {}
     }
 
     stemActive[stemName] = { src, gainNode: g, variantIndex };
@@ -640,6 +659,11 @@
   function startAll(){
     if(isPlaying) return;
 
+    if (master && ac) {
+      master.gain.cancelScheduledValues(ac.currentTime);
+      master.gain.setValueAtTime(MASTER_LEVEL, ac.currentTime);
+    }
+
     const t0 = ac.currentTime + 0.10;
     playStartTime = t0;
 
@@ -657,9 +681,9 @@
       startStem(s, 0, t0, 0.08);
     }
 
-    fxSources.rain  = makeLoopSource(fxBuffers.rain, fxRain);
-    fxSources.conv  = makeLoopSource(fxBuffers.conv, fxConv);
-    fxSources.vinyl = makeLoopSource(fxBuffers.vinyl, fxVinyl);
+    fxSources.rain  = makeLoopSource(fxBuffers.rain, fxRain, t0);
+    fxSources.conv  = makeLoopSource(fxBuffers.conv, fxConv, t0);
+    fxSources.vinyl = makeLoopSource(fxBuffers.vinyl, fxVinyl, t0);
     Object.values(fxSources).forEach(src => src.start(t0));
 
     connectWobbleToActive();
@@ -691,7 +715,6 @@
   }
 
   function shuffleWithIntensity(v){
-    // v in [0,1] controls how "busy" the mask + swapping feels
     arrangement = {
       drums: true,
       bass: existsStem("bass") ? (Math.random() > 0.15 * v) : false,
@@ -699,13 +722,11 @@
       melody: existsStem("melody") ? (Math.random() > 0.45 * v) : false
     };
 
-    // Apply mask smoothly
     for (const s of STEMS) {
       if (!stemChannelGain[s]) continue;
       stemChannelGain[s].gain.setTargetAtTime(arrangement[s] ? 1 : 0, ac.currentTime, 0.08);
     }
 
-    // Swap variants on next loop boundary, per-stem probability influenced by v
     const when = nextLoopBoundaryTime();
     for (const s of STEMS) {
       if (!stemChannelGain[s]) continue;
@@ -721,7 +742,6 @@
 
   function shuffleNow(){
     if(!isPlaying) return;
-    // Manual shuffle uses full intensity (1.0), but still uses the "soft" logic
     shuffleWithIntensity(1.0);
     setStatus("Shuffled: mask + variants (next boundary).");
   }
@@ -747,7 +767,6 @@
     const v = parseFloat(ui.variety.value);
     if (!(v > 0)) return;
 
-    // chance that anything happens this cycle
     if (Math.random() > v) return;
 
     shuffleWithIntensity(v);
@@ -757,7 +776,6 @@
   ["trackVol","rainVol","convVol","vinylVol","muffle","wobble","variety"].forEach(k => {
     ui[k].addEventListener("input", () => {
       updateAudioFromUI();
-      // if user changes variety mid-play, restart the arranger so it feels responsive
       if (k === "variety" && isPlaying) startArranger();
     });
   });
@@ -779,7 +797,7 @@
     if(!ac) return;
     stopArranger();
     stopAll();
-    setStatus("Paused.");
+    setStatus("Stopped.");
   });
 
   ui.shuffle.addEventListener("click", shuffleNow);
@@ -799,7 +817,7 @@
   const sceneNames = {
     loaf: "loaf island",
     hello: "hello world",
-    deepfi: "deep fi",
+    undersea: "undersea",
   };
 
   let sceneMode = "loaf";
@@ -857,7 +875,7 @@
       sctx.globalAlpha = 0.10 + glow * 0.18;
       if(sceneMode === "loaf") sctx.fillStyle = "#1b5cff";
       if(sceneMode === "hello") sctx.fillStyle = "#b06bff";
-      if(sceneMode === "deepfi") sctx.fillStyle = "#35ffb2";
+      if(sceneMode === "undersea") sctx.fillStyle = "#35ffb2";
       sctx.fillRect(0,0,w,h);
       sctx.globalAlpha = 1;
     }
