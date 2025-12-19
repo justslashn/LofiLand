@@ -157,7 +157,7 @@
       <div class="scene">
         <video id="sceneVideo" playsinline muted loop style="display:none"></video>
         <canvas id="scene"></canvas>
-        <div class="label" id="sceneLabel">Scene: Loaf Island</div>
+        <div class="label" id="sceneLabel">Scene: loaf island</div>
       </div>
 
       <div class="wave">
@@ -168,7 +168,7 @@
         <div class="panel">
           <h3>Scene Select</h3>
           <div class="btns">
-            <button data-scene="loaf">Loaf Island</button>
+            <button data-scene="loaf">loaf island</button>
             <button data-scene="hello" data-video="video/Hello_World.mp4">hello world</button>
             <button data-scene="deepfi" data-video="video/deepfi.mp4">deep fi</button>
           </div>
@@ -208,7 +208,7 @@
             <div class="control"><div>Glow</div><input id="glow" type="range" min="0" max="1" step="0.01" value="0.30"/><div class="val" id="glowV">0.30</div></div>
             <div class="control"><div>Vignette</div><input id="vignette" type="range" min="0" max="1" step="0.01" value="1.00"/><div class="val" id="vignetteV">1.00</div></div>
             <div class="control"><div>Rain</div><input id="rainOverlay" type="range" min="0" max="1" step="0.01" value="1.00"/><div class="val" id="rainOverlayV">1.00</div></div>
-            <div class="control"><div>Deep fi artifacts</div><input id="artifacts" type="range" min="0" max="1" step="0.01" value="1.00"/><div class="val" id="artifactsV">1.00</div></div>
+            <div class="control"><div>Ripple</div><input id="ripple" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="rippleV">0.00</div></div>
           </div>
         </div>
       </div>
@@ -280,7 +280,7 @@
     glow: $("glow"),
     vignette: $("vignette"),
     rainOverlay: $("rainOverlay"),
-    artifacts: $("artifacts")
+    ripple: $("ripple")
   };
 
   const uiVals = {
@@ -294,7 +294,7 @@
     glowV: $("glowV"),
     vignetteV: $("vignetteV"),
     rainOverlayV: $("rainOverlayV"),
-    artifactsV: $("artifactsV"),
+    rippleV: $("rippleV"),
   };
 
   const packButtons = Array.from(document.querySelectorAll("button[data-pack]"));
@@ -318,7 +318,7 @@
   bindValue(ui.glow, uiVals.glowV);
   bindValue(ui.vignette, uiVals.vignetteV);
   bindValue(ui.rainOverlay, uiVals.rainOverlayV);
-  bindValue(ui.artifacts, uiVals.artifactsV);
+  bindValue(ui.ripple, uiVals.rippleV);
 
   function setActivePackButton(name){
     packButtons.forEach(btn => {
@@ -744,7 +744,7 @@
   window.addEventListener("resize", () => resizeCanvasToCSS(sceneCanvas));
 
   const sceneNames = {
-    loaf: "Loaf Island",
+    loaf: "loaf island",
     hello: "hello world",
     deepfi: "deep fi",
   };
@@ -791,7 +791,7 @@
     const vign = parseFloat(ui.vignette.value);
     const rainAmt = parseFloat(ui.rainVol.value);
     const rainOverlay = parseFloat(ui.rainOverlay.value || 1);
-    const artifacts = parseFloat(ui.artifacts.value || 1);
+    const ripple = parseFloat(ui.ripple.value || 1);
 
     const hasVideo = !!sceneVideo?.src;
 
@@ -824,8 +824,9 @@
       }
     }
 
-    if(sceneMode === "deepfi"){
-      sctx.fillStyle = `rgba(255,255,255,${0.12 * artifacts})`;
+    if(ripple > 0){
+      const rippleAlpha = 0.12 * ripple;
+      sctx.fillStyle = `rgba(200,240,255,${rippleAlpha})`;
       for(let i=0;i<8;i++){
         const x = (w * ((i*0.13 + t*0.03) % 1));
         const y = h*0.35 + Math.sin(t*0.7 + i)*h*0.12;
@@ -835,15 +836,8 @@
       }
     }
 
-    if(sceneMode === "hello"){
-      const cx = w*0.78, cy = h*0.42, r = Math.min(w,h)*0.18;
-      sctx.globalAlpha = 0.25 + glow*0.25;
-      sctx.fillStyle = "rgba(140,200,255,0.35)";
-      sctx.beginPath(); sctx.arc(cx,cy,r,0,Math.PI*2); sctx.fill();
-      sctx.globalAlpha = 1;
-    }
-
-    sctx.globalAlpha = hasVideo ? (0.25 + vign*0.35) : (0.35 + vign*0.45);
+    const vignetteAlpha = hasVideo ? (0.6 * vign) : (0.2 + 0.5 * vign);
+    sctx.globalAlpha = vignetteAlpha;
     const grd = sctx.createRadialGradient(w*0.5,h*0.5, Math.min(w,h)*0.25, w*0.5,h*0.5, Math.max(w,h)*0.65);
     grd.addColorStop(0, "rgba(0,0,0,0)");
     grd.addColorStop(1, "rgba(0,0,0,1)");
