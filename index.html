@@ -168,16 +168,16 @@
         <div class="panel">
           <h3>Scene Select</h3>
           <div class="btns">
-            <button data-scene="loaf">loaf island</button>
+            <button data-scene="loaf" data-video="video/classic.mp4">loaf island</button>
             <button data-scene="hello" data-video="video/Hello_World.mp4">hello world</button>
             <button data-scene="deepfi" data-video="video/deepfi.mp4">deep fi</button>
           </div>
 
           <h3>Vibe Pack</h3>
           <div class="btns" id="packButtons">
-            <button data-pack="lofi" class="active">Lofi Trip-hop</button>
-            <button data-pack="ambient">Ambient</button>
-            <button data-pack="spacehop">Spacehop</button>
+            <button data-pack="lofi" class="active">classic</button>
+            <button data-pack="ambient">ambient</button>
+            <button data-pack="spacehop">space-hop</button>
           </div>
           <div class="btns">
             <button id="play">Play</button>
@@ -194,19 +194,20 @@
           <h3>Vibe Mix</h3>
           <div class="grid">
             <div class="control"><div>Track</div><input id="trackVol" type="range" min="0" max="1" step="0.01" value="0.8"/><div class="val" id="trackVolV">0.80</div></div>
-            <div class="control"><div>Rain</div><input id="rainVol" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="rainVolV">0.35</div></div>
-            <div class="control"><div>Conversation</div><input id="convVol" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="convVolV">0.35</div></div>
-            <div class="control"><div>Vinyl</div><input id="vinylVol" type="range" min="0" max="1" step="0.01" value="0.15"/><div class="val" id="vinylVolV">0.15</div></div>
+            <div class="control"><div>Rain</div><input id="rainVol" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="rainVolV">0.00</div></div>
+            <div class="control"><div>Conversation</div><input id="convVol" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="convVolV">0.00</div></div>
+            <div class="control"><div>Vinyl</div><input id="vinylVol" type="range" min="0" max="1" step="0.01" value="0.20"/><div class="val" id="vinylVolV">0.20</div></div>
 
             <div class="control"><div>Variety</div><input id="variety" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="varietyV">0.35</div></div>
-            <div class="control"><div>Muffle</div><input id="muffle" type="range" min="0" max="1" step="0.01" value="0.25"/><div class="val" id="muffleV">0.25</div></div>
-            <div class="control"><div>Wobble</div><input id="wobble" type="range" min="0" max="1" step="0.01" value="0.20"/><div class="val" id="wobbleV">0.20</div></div>
+            <div class="control"><div>Muffle</div><input id="muffle" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="muffleV">0.00</div></div>
+            <div class="control"><div>Wobble</div><input id="wobble" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="wobbleV">0.00</div></div>
 
             <h3 style="margin:10px 0 0 0;">CRT Controls</h3>
 
-            <div class="control"><div>Glow</div><input id="glow" type="range" min="0" max="1" step="0.01" value="0.30"/><div class="val" id="glowV">0.30</div></div>
-            <div class="control"><div>Vignette</div><input id="vignette" type="range" min="0" max="1" step="0.01" value="1.00"/><div class="val" id="vignetteV">1.00</div></div>
-            <div class="control"><div>Rain</div><input id="rainOverlay" type="range" min="0" max="1" step="0.01" value="1.00"/><div class="val" id="rainOverlayV">1.00</div></div>
+
+            <div class="control"><div>Glow</div><input id="glow" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="glowV">0.00</div></div>
+            <div class="control"><div>Vignette</div><input id="vignette" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="vignetteV">0.00</div></div>
+            <div class="control"><div>Rain</div><input id="rainOverlay" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="rainOverlayV">0.00</div></div>
             <div class="control"><div>Ripple</div><input id="ripple" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="rippleV">0.00</div></div>
           </div>
         </div>
@@ -328,12 +329,17 @@
   async function handlePackSelect(name){
     currentPack = name;
     setActivePackButton(name);
-
-    if(!ac) return;
-    await loadPack(currentPack);
-    if(isPlaying) startAll();
-    try { setScene(sceneMode); } catch {}
-    updateAudioFromUI();
+    try {
+      await ensureAudio();
+      if(ac.state === "suspended") await ac.resume();
+      await loadPack(currentPack);
+      startAll();
+      try { setScene(sceneMode); } catch {}
+      updateAudioFromUI();
+    } catch (err) {
+      setStatus("Error: " + err.message);
+      console.error(err);
+    }
   }
 
   packButtons.forEach(btn => {
@@ -539,6 +545,13 @@
     stemBuffers = { drums: [], bass: [], chords: [], melody: [] };
     fxBuffers = {};
 
+    const loadedCounts = { drums: 0, bass: 0, chords: 0, melody: 0 };
+    const totals = { drums: 0, bass: 0, chords: 0, melody: 0 };
+    const reportStatus = (prefix = "Loading") => {
+      const parts = STEMS.map(s => `${s} ${loadedCounts[s]}/${totals[s]}`);
+      setStatus(`${prefix}: ${parts.join(", ")}`);
+    };
+
     const packPath = (p) => `packs/${packName}/${p}`;
     const fxPath = (p) => `fx/${p}`;
     const manifestUrl = packPath("manifest.json");
@@ -549,6 +562,7 @@
     for (const s of STEMS) {
       const arr = Array.isArray(manifest[s]) ? manifest[s] : [];
       stemFiles[s] = arr;
+      totals[s] = arr.length;
     }
 
     if (stemFiles.drums.length === 0) {
@@ -556,13 +570,18 @@
     }
 
     setStatus("Loading stem buffers...");
-    for (const s of STEMS) {
+
+    const coreLoads = STEMS.map(async (s) => {
       const files = stemFiles[s];
       stemBuffers[s] = [];
-      for (const f of files) {
-        stemBuffers[s].push(await loadBuffer(packPath(f)));
-      }
-    }
+      if (!files || files.length === 0) return;
+      const buf = await loadBuffer(packPath(files[0]));
+      stemBuffers[s].push(buf);
+      loadedCounts[s] = 1;
+      reportStatus();
+    });
+
+    await Promise.all(coreLoads);
 
     loopDur = stemBuffers.drums[0].duration;
 
@@ -578,9 +597,44 @@
       melody: stemBuffers.melody.length > 0
     };
 
-    const counts = STEMS.map(s => `${s}:${stemBuffers[s].length}`).join(", ");
-    const sourceLabel = assetBase === LOCAL_ASSET_BASE ? "local" : "CDN";
-    setStatus(`Loaded ${packName} (${sourceLabel}). Variants: ${counts}`);
+    reportStatus("Core ready");
+
+    const remainingTasks = [];
+    for (const s of STEMS) {
+      const files = stemFiles[s] || [];
+      for (let i = 1; i < files.length; i++) {
+        remainingTasks.push({ stem: s, file: files[i] });
+      }
+    }
+
+    let taskIndex = 0;
+    const concurrency = Math.min(3, remainingTasks.length || 0);
+
+    const worker = async () => {
+      while (taskIndex < remainingTasks.length) {
+        const current = remainingTasks[taskIndex++];
+        try {
+          const buf = await loadBuffer(packPath(current.file));
+          stemBuffers[current.stem].push(buf);
+          loadedCounts[current.stem]++;
+          reportStatus();
+        } catch (err) {
+          console.warn("Failed to load", current.file, err);
+        }
+      }
+    };
+
+    if (remainingTasks.length > 0) {
+      Promise.all(Array.from({ length: Math.max(1, concurrency) }, worker)).then(() => {
+        const counts = STEMS.map(s => `${s}:${stemBuffers[s].length}`).join(", ");
+        const sourceLabel = assetBase === LOCAL_ASSET_BASE ? "local" : "CDN";
+        setStatus(`Loaded ${packName} (${sourceLabel}). Variants: ${counts}`);
+      });
+    } else {
+      const counts = STEMS.map(s => `${s}:${stemBuffers[s].length}`).join(", ");
+      const sourceLabel = assetBase === LOCAL_ASSET_BASE ? "local" : "CDN";
+      setStatus(`Loaded ${packName} (${sourceLabel}). Variants: ${counts}`);
+    }
   }
 
   function startAll(){
