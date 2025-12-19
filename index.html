@@ -157,7 +157,7 @@
       <div class="scene">
         <video id="sceneVideo" playsinline muted loop style="display:none"></video>
         <canvas id="scene"></canvas>
-        <div class="label" id="sceneLabel">Scene: Ramen Rain</div>
+        <div class="label" id="sceneLabel">Scene: loaf island</div>
       </div>
 
       <div class="wave">
@@ -168,9 +168,9 @@
         <div class="panel">
           <h3>Scene Select</h3>
           <div class="btns">
-            <button data-scene="ramen" data-video="video/deepfi.mp4">Ramen Rain</button>
-            <button data-scene="capsule" data-video="video/Hello_World.mp4">Hello World</button>
-            <button data-scene="submarine">Submarine Drift</button>
+            <button data-scene="loaf">loaf island</button>
+            <button data-scene="hello" data-video="video/Hello_World.mp4">hello world</button>
+            <button data-scene="deepfi" data-video="video/deepfi.mp4">deep fi</button>
           </div>
 
           <h3>Vibe Pack</h3>
@@ -207,6 +207,9 @@
 
             <div class="control"><div>Glow</div><input id="glow" type="range" min="0" max="1" step="0.01" value="0.30"/><div class="val" id="glowV">0.30</div></div>
             <div class="control"><div>Vignette</div><input id="vignette" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="vignetteV">0.35</div></div>
+            <div class="control"><div>Placeholder Fill</div><input id="placeholderColor" type="range" min="0" max="1" step="0.01" value="1.00"/><div class="val" id="placeholderColorV">1.00</div></div>
+            <div class="control"><div>Placeholder Rain</div><input id="placeholderRain" type="range" min="0" max="1" step="0.01" value="1.00"/><div class="val" id="placeholderRainV">1.00</div></div>
+            <div class="control"><div>Overlay Vignette</div><input id="placeholderVignette" type="range" min="0" max="1" step="0.01" value="1.00"/><div class="val" id="placeholderVignetteV">1.00</div></div>
           </div>
         </div>
       </div>
@@ -276,7 +279,10 @@
     muffle: $("muffle"),
     wobble: $("wobble"),
     glow: $("glow"),
-    vignette: $("vignette")
+    vignette: $("vignette"),
+    placeholderColor: $("placeholderColor"),
+    placeholderRain: $("placeholderRain"),
+    placeholderVignette: $("placeholderVignette")
   };
 
   const uiVals = {
@@ -289,6 +295,9 @@
     wobbleV: $("wobbleV"),
     glowV: $("glowV"),
     vignetteV: $("vignetteV"),
+    placeholderColorV: $("placeholderColorV"),
+    placeholderRainV: $("placeholderRainV"),
+    placeholderVignetteV: $("placeholderVignetteV"),
   };
 
   const packButtons = Array.from(document.querySelectorAll("button[data-pack]"));
@@ -311,6 +320,9 @@
   bindValue(ui.wobble, uiVals.wobbleV);
   bindValue(ui.glow, uiVals.glowV);
   bindValue(ui.vignette, uiVals.vignetteV);
+  bindValue(ui.placeholderColor, uiVals.placeholderColorV);
+  bindValue(ui.placeholderRain, uiVals.placeholderRainV);
+  bindValue(ui.placeholderVignette, uiVals.placeholderVignetteV);
 
   function setActivePackButton(name){
     packButtons.forEach(btn => {
@@ -736,12 +748,12 @@
   window.addEventListener("resize", () => resizeCanvasToCSS(sceneCanvas));
 
   const sceneNames = {
-    ramen: "Ramen Rain",
-    capsule: "Hello World",
-    submarine: "Submarine Drift",
+    loaf: "loaf island",
+    hello: "hello world",
+    deepfi: "deep fi",
   };
 
-  let sceneMode = "ramen";
+  let sceneMode = "loaf";
 
   function setScene(mode){
     sceneMode = mode;
@@ -782,6 +794,9 @@
     const glow = parseFloat(ui.glow.value);
     const vign = parseFloat(ui.vignette.value);
     const rainAmt = parseFloat(ui.rainVol.value);
+    const placeholderColor = parseFloat(ui.placeholderColor.value || 1);
+    const placeholderRain = parseFloat(ui.placeholderRain.value || 1);
+    const placeholderVignette = parseFloat(ui.placeholderVignette.value || 1);
 
     const hasVideo = !!sceneVideo?.src;
 
@@ -791,28 +806,30 @@
       sctx.fillStyle = "#02040a";
       sctx.fillRect(0,0,w,h);
 
-      sctx.globalAlpha = 0.10 + glow * 0.18;
-      if(sceneMode === "ramen") sctx.fillStyle = "#1b5cff";
-      if(sceneMode === "capsule") sctx.fillStyle = "#b06bff";
-      if(sceneMode === "submarine") sctx.fillStyle = "#35ffb2";
+      sctx.globalAlpha = (0.10 + glow * 0.18) * placeholderColor;
+      if(sceneMode === "loaf") sctx.fillStyle = "#1b5cff";
+      if(sceneMode === "hello") sctx.fillStyle = "#b06bff";
+      if(sceneMode === "deepfi") sctx.fillStyle = "#35ffb2";
       sctx.fillRect(0,0,w,h);
       sctx.globalAlpha = 1;
     }
 
     const drops = Math.floor(120 * (0.2 + rainAmt));
-    sctx.strokeStyle = "rgba(200,240,255,0.22)";
+    sctx.strokeStyle = `rgba(200,240,255,${0.22 * placeholderRain})`;
     sctx.lineWidth = 1;
-    for(let i=0;i<drops;i++){
-      const x = (Math.sin(i*12.31 + t*0.6) * 0.5 + 0.5) * w;
-      const y = ((i*97 + t*260) % (h+200)) - 200;
-      const len = 30 + rainAmt*50;
-      sctx.beginPath();
-      sctx.moveTo(x,y);
-      sctx.lineTo(x+8,y+len);
-      sctx.stroke();
+    if (placeholderRain > 0) {
+      for(let i=0;i<drops;i++){
+        const x = (Math.sin(i*12.31 + t*0.6) * 0.5 + 0.5) * w;
+        const y = ((i*97 + t*260) % (h+200)) - 200;
+        const len = 30 + rainAmt*50;
+        sctx.beginPath();
+        sctx.moveTo(x,y);
+        sctx.lineTo(x+8,y+len);
+        sctx.stroke();
+      }
     }
 
-    if(sceneMode === "submarine"){
+    if(sceneMode === "deepfi"){
       sctx.fillStyle = "rgba(255,255,255,0.12)";
       for(let i=0;i<8;i++){
         const x = (w * ((i*0.13 + t*0.03) % 1));
@@ -823,7 +840,7 @@
       }
     }
 
-    if(sceneMode === "capsule"){
+    if(sceneMode === "hello"){
       const cx = w*0.78, cy = h*0.42, r = Math.min(w,h)*0.18;
       sctx.globalAlpha = 0.25 + glow*0.25;
       sctx.fillStyle = "rgba(140,200,255,0.35)";
@@ -831,7 +848,7 @@
       sctx.globalAlpha = 1;
     }
 
-    sctx.globalAlpha = hasVideo ? (0.25 + vign*0.35) : (0.35 + vign*0.45);
+    sctx.globalAlpha = (hasVideo ? (0.25 + vign*0.35) : (0.35 + vign*0.45)) * placeholderVignette;
     const grd = sctx.createRadialGradient(w*0.5,h*0.5, Math.min(w,h)*0.25, w*0.5,h*0.5, Math.max(w,h)*0.65);
     grd.addColorStop(0, "rgba(0,0,0,0)");
     grd.addColorStop(1, "rgba(0,0,0,1)");
