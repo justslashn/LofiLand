@@ -175,7 +175,7 @@
 
           <h3>Vibe Pack</h3>
           <div class="btns" id="packButtons">
-            <button data-pack="lofi" class="active">classic</button>
+            <button data-pack="loaf" class="active">loaf</button>
             <button data-pack="ambient">ambient</button>
             <button data-pack="spacehop">space-hop</button>
           </div>
@@ -301,7 +301,7 @@
   let currentPack =
     packButtons.find(btn => btn.classList.contains("active"))?.dataset.pack ||
     packButtons[0]?.dataset.pack ||
-    "lofi";
+    "loaf";
 
   function bindValue(el, out){
     const sync = () => out.textContent = Number(el.value).toFixed(2);
