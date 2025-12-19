@@ -96,7 +96,6 @@
       cursor:pointer;
       font-family: var(--mono);
       font-size: 12px;
-      width:100%;
     }
     button:hover{ border-color: rgba(103,217,255,.35); }
     .grid{ display:grid; gap:10px; }
@@ -155,7 +154,7 @@
           <h3>Scene Select</h3>
           <div class="btns">
             <button data-scene="ramen">Ramen Rain</button>
-            <button data-scene="capsule">Capsule Desk</button>
+            <button data-scene="capsule">Hello World</button>
             <button data-scene="submarine">Submarine Drift</button>
           </div>
 
@@ -190,10 +189,12 @@
             <div class="control"><div>Vinyl</div><input id="vinylVol" type="range" min="0" max="1" step="0.01" value="0.15"/><div class="val" id="vinylVolV">0.15</div></div>
 
             <div class="control"><div>Variety</div><input id="variety" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="varietyV">0.35</div></div>
-
-            <h3 style="margin:10px 0 0 0;">CRT Controls</h3>
             <div class="control"><div>Muffle</div><input id="muffle" type="range" min="0" max="1" step="0.01" value="0.25"/><div class="val" id="muffleV">0.25</div></div>
             <div class="control"><div>Wobble</div><input id="wobble" type="range" min="0" max="1" step="0.01" value="0.20"/><div class="val" id="wobbleV">0.20</div></div>
+
+            <h3 style="margin:10px 0 0 0;">CRT Controls</h3>
+            
+            
             <div class="control"><div>Glow</div><input id="glow" type="range" min="0" max="1" step="0.01" value="0.30"/><div class="val" id="glowV">0.30</div></div>
             <div class="control"><div>Vignette</div><input id="vignette" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="vignetteV">0.35</div></div>
           </div>
@@ -394,23 +395,13 @@
   }
 
   function stopAll(){
-    const now = ac ? ac.currentTime : 0;
-
     for (const k of Object.keys(fxSources)) {
-      const src = fxSources[k];
-      try {
-        const t = Math.max(now, src?._startTime ?? now);
-        src.stop(t);
-      } catch {}
+      try { fxSources[k].stop(); } catch {}
     }
     fxSources = {};
 
     for (const s of Object.keys(stemActive)) {
-      const src = stemActive[s]?.src;
-      try {
-        const t = Math.max(now, src?._startTime ?? now);
-        src.stop(t);
-      } catch {}
+      try { stemActive[s].src.stop(); } catch {}
     }
     stemActive = {};
 
@@ -430,7 +421,7 @@
     if (stemActive.chords?.src) wobbleGain.connect(stemActive.chords.src.playbackRate);
   }
 
-  function startStem(stemName, variantIndex, when, fadeSeconds = DEFAULT_FADE){
+  function startStem(stemName, variantIndex, when, fadeSeconds = 0.12){
     const bufArr = stemBuffers[stemName];
     if (!bufArr || bufArr.length === 0) return;
 
@@ -447,7 +438,6 @@
     src.loop = true;
     src.connect(g);
     src.start(when);
-    src._startTime = when;
 
     const old = stemActive[stemName];
     if (old?.gainNode && old?.src) {
@@ -527,10 +517,6 @@
   function startAll(){
     if(isPlaying) return;
 
-    // restore output in case we hard-muted on pause
-    master.gain.cancelScheduledValues(ac.currentTime);
-    master.gain.setValueAtTime(MASTER_LEVEL, ac.currentTime);
-
     const t0 = ac.currentTime + 0.10;
     playStartTime = t0;
 
@@ -551,7 +537,7 @@
     fxSources.rain  = makeLoopSource(fxBuffers.rain, fxRain);
     fxSources.conv  = makeLoopSource(fxBuffers.conv, fxConv);
     fxSources.vinyl = makeLoopSource(fxBuffers.vinyl, fxVinyl);
-    Object.values(fxSources).forEach(src => { src.start(t0); src._startTime = t0; });
+    Object.values(fxSources).forEach(src => src.start(t0));
 
     connectWobbleToActive();
 
@@ -581,7 +567,7 @@
     return (stemBuffers[s]?.length ?? 0) > 0;
   }
 
-  function shuffleWithIntensity(v, fadeSeconds = DEFAULT_FADE){
+  function shuffleWithIntensity(v){
     // v in [0,1] controls how "busy" the mask + swapping feels
     arrangement = {
       drums: true,
@@ -604,7 +590,7 @@
 
       const nextIdx = pickDifferentVariantIndex(s);
       const curIdx = stemActive[s]?.variantIndex ?? 0;
-      if (nextIdx !== curIdx) startStem(s, nextIdx, when, fadeSeconds);
+      if (nextIdx !== curIdx) startStem(s, nextIdx, when, 0.12);
     }
 
     setTimeout(connectWobbleToActive, 150);
@@ -613,7 +599,7 @@
   function shuffleNow(){
     if(!isPlaying) return;
     // Manual shuffle uses full intensity (1.0), but still uses the "soft" logic
-    shuffleWithIntensity(1.0);
+    shuffleWithIntensity(1.0, SHUFFLE_FADE);
     setStatus("Shuffled: mask + variants (next boundary).");
   }
 
@@ -677,6 +663,8 @@
     if(!ac) return;
     await loadPack(ui.pack.value);
     if(isPlaying) startAll();
+    // refresh video based on pack override
+    try { setScene(sceneMode); } catch {}
     updateAudioFromUI();
   });
 
@@ -700,7 +688,7 @@
       sceneMode = btn.dataset.scene;
       sceneLabel.textContent =
         "Scene: " +
-        (sceneMode === "ramen" ? "Ramen Rain" : sceneMode === "capsule" ? "Capsule Desk" : "Submarine Drift");
+        (sceneMode === "ramen" ? "Ramen Rain" : sceneMode === "capsule" ? "Hello World" : "Submarine Drift");
     });
   });
 
