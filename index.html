@@ -204,6 +204,7 @@
 
             <h3 style="margin:10px 0 0 0;">CRT Controls</h3>
 
+
             <div class="control"><div>Glow</div><input id="glow" type="range" min="0" max="1" step="0.01" value="0.30"/><div class="val" id="glowV">0.30</div></div>
             <div class="control"><div>Vignette</div><input id="vignette" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="vignetteV">0.35</div></div>
           </div>
@@ -237,12 +238,14 @@
 <script>
   const $ = (id) => document.getElementById(id);
 
-  // ===== CDN CONFIG =====
-  // If an asset update seems cached, set REF to a commit hash.
+  // ===== ASSET CONFIG =====
+  // Prefer local assets; fall back to CDN if running from the raw HTML file.
   const USER = "justslashn";
   const REPO = "LofiLand";
   const REF  = "main";
-  const CDN  = `https://cdn.jsdelivr.net/gh/${USER}/${REPO}@${REF}/`;
+  const CDN_ASSET_BASE = `https://cdn.jsdelivr.net/gh/${USER}/${REPO}@${REF}/`;
+  const LOCAL_ASSET_BASE = "./";
+  let assetBase = LOCAL_ASSET_BASE;
   const MASTER_LEVEL = 0.9;
   // ======================
 
@@ -409,17 +412,39 @@
     setStatus("Audio ready.");
   }
 
-  async function fetchJson(url){
-    const res = await fetch(url, { cache: "no-store" });
-    if(!res.ok) throw new Error("Missing file: " + url);
-    return await res.json();
+  async function fetchWithFallback(path, loader){
+    const bases = assetBase === LOCAL_ASSET_BASE
+      ? [LOCAL_ASSET_BASE, CDN_ASSET_BASE]
+      : [assetBase, CDN_ASSET_BASE];
+
+    let lastErr = null;
+    for (const base of bases) {
+      try {
+        const result = await loader(base + path);
+        assetBase = base;
+        return result;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr ?? new Error("Unable to fetch asset: " + path);
   }
 
-  async function loadBuffer(url){
-    const res = await fetch(url, { cache: "no-store" });
-    if(!res.ok) throw new Error("Missing file: " + url);
-    const arr = await res.arrayBuffer();
-    return await ac.decodeAudioData(arr);
+  async function fetchJson(path){
+    return await fetchWithFallback(path, async (url) => {
+      const res = await fetch(url, { cache: "no-store" });
+      if(!res.ok) throw new Error("Missing file: " + url);
+      return await res.json();
+    });
+  }
+
+  async function loadBuffer(path){
+    return await fetchWithFallback(path, async (url) => {
+      const res = await fetch(url, { cache: "no-store" });
+      if(!res.ok) throw new Error("Missing file: " + url);
+      const arr = await res.arrayBuffer();
+      return await ac.decodeAudioData(arr);
+    });
   }
 
   function makeLoopSource(buffer, destination){
@@ -507,9 +532,9 @@
     stemBuffers = { drums: [], bass: [], chords: [], melody: [] };
     fxBuffers = {};
 
-    const packBase = `${CDN}packs/${packName}/`;
-    const fxBase = `${CDN}fx/`;
-    const manifestUrl = `${packBase}manifest.json`;
+    const packPath = (p) => `packs/${packName}/${p}`;
+    const fxPath = (p) => `fx/${p}`;
+    const manifestUrl = packPath("manifest.json");
 
     setStatus("Loading manifest...");
     manifest = await fetchJson(manifestUrl);
@@ -528,16 +553,16 @@
       const files = stemFiles[s];
       stemBuffers[s] = [];
       for (const f of files) {
-        stemBuffers[s].push(await loadBuffer(packBase + f));
+        stemBuffers[s].push(await loadBuffer(packPath(f)));
       }
     }
 
     loopDur = stemBuffers.drums[0].duration;
 
     // FX (fixed filenames)
-    fxBuffers.rain  = await loadBuffer(fxBase + "rain.mp3");
-    fxBuffers.conv  = await loadBuffer(fxBase + "cafe_chatter.mp3");
-    fxBuffers.vinyl = await loadBuffer(fxBase + "vinyl_noise.mp3");
+    fxBuffers.rain  = await loadBuffer(fxPath("rain.mp3"));
+    fxBuffers.conv  = await loadBuffer(fxPath("cafe_chatter.mp3"));
+    fxBuffers.vinyl = await loadBuffer(fxPath("vinyl_noise.mp3"));
 
     arrangement = {
       drums: stemBuffers.drums.length > 0,
@@ -547,7 +572,8 @@
     };
 
     const counts = STEMS.map(s => `${s}:${stemBuffers[s].length}`).join(", ");
-    setStatus(`Loaded ${packName}. Variants: ${counts}`);
+    const sourceLabel = assetBase === LOCAL_ASSET_BASE ? "local" : "CDN";
+    setStatus(`Loaded ${packName} (${sourceLabel}). Variants: ${counts}`);
   }
 
   function startAll(){
