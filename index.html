@@ -168,15 +168,15 @@
         <div class="panel">
           <h3>Scene Select</h3>
           <div class="btns">
-            <button data-scene="loaf" data-video="video/loaf_island.mp4">loaf island</button>
-            <button data-scene="hello" data-video="video/hello_world.mp4">hello world</button>
-            <button data-scene="undersea" data-video="video/undersea.mp4">undersea</button>
+            <button data-scene="loaf">loaf island</button>
+            <button data-scene="hello" data-video="video/Hello_World.mp4">hello world</button>
+            <button data-scene="deepfi" data-video="video/deepfi.mp4">deep fi</button>
           </div>
 
           <h3>Vibe Pack</h3>
           <div class="btns" id="packButtons">
-            <button data-pack="lofi" class="active">lofi</button>
-            <button data-pack="deepfi">deep fi</button>
+            <button data-pack="lofi" class="active">classic</button>
+            <button data-pack="ambient">ambient</button>
             <button data-pack="spacehop">space-hop</button>
           </div>
           <div class="btns">
@@ -249,6 +249,7 @@
   const LOCAL_ASSET_BASE = "./";
   let assetBase = LOCAL_ASSET_BASE;
   const MASTER_LEVEL = 0.9;
+  const SHUFFLE_INTENSITY = 1.0;
   // ======================
 
   const STEMS = ["drums","bass","chords","melody"];
@@ -715,6 +716,7 @@
   }
 
   function shuffleWithIntensity(v){
+    // v in [0,1] controls how "busy" the mask + swapping feels
     arrangement = {
       drums: true,
       bass: existsStem("bass") ? (Math.random() > 0.15 * v) : false,
@@ -722,12 +724,19 @@
       melody: existsStem("melody") ? (Math.random() > 0.45 * v) : false
     };
 
+    const when = nextLoopBoundaryTime();
+
+    // Apply mask smoothly
     for (const s of STEMS) {
       if (!stemChannelGain[s]) continue;
-      stemChannelGain[s].gain.setTargetAtTime(arrangement[s] ? 1 : 0, ac.currentTime, 0.08);
+      const g = stemChannelGain[s].gain;
+      const target = arrangement[s] ? 1 : 0;
+      try { g.cancelScheduledValues(when); } catch {}
+      g.setValueAtTime(g.value, when);
+      g.linearRampToValueAtTime(target, when + 0.08);
     }
 
-    const when = nextLoopBoundaryTime();
+    // Swap variants on next loop boundary, per-stem probability influenced by v
     for (const s of STEMS) {
       if (!stemChannelGain[s]) continue;
       if (Math.random() > v) continue;
@@ -742,8 +751,10 @@
 
   function shuffleNow(){
     if(!isPlaying) return;
-    shuffleWithIntensity(1.0);
-    setStatus("Shuffled: mask + variants (next boundary).");
+    const v = parseFloat(ui.variety.value);
+    const intensity = Math.max(v, SHUFFLE_INTENSITY);
+    shuffleWithIntensity(intensity);
+    setStatus("Shuffle: strong mask + variation at next boundary.");
   }
 
   function startArranger(){
@@ -767,6 +778,7 @@
     const v = parseFloat(ui.variety.value);
     if (!(v > 0)) return;
 
+    // chance that anything happens this cycle
     if (Math.random() > v) return;
 
     shuffleWithIntensity(v);
@@ -776,6 +788,7 @@
   ["trackVol","rainVol","convVol","vinylVol","muffle","wobble","variety"].forEach(k => {
     ui[k].addEventListener("input", () => {
       updateAudioFromUI();
+      // if user changes variety mid-play, restart the arranger so it feels responsive
       if (k === "variety" && isPlaying) startArranger();
     });
   });
@@ -817,7 +830,7 @@
   const sceneNames = {
     loaf: "loaf island",
     hello: "hello world",
-    undersea: "undersea",
+    deepfi: "deep fi",
   };
 
   let sceneMode = "loaf";
@@ -875,7 +888,7 @@
       sctx.globalAlpha = 0.10 + glow * 0.18;
       if(sceneMode === "loaf") sctx.fillStyle = "#1b5cff";
       if(sceneMode === "hello") sctx.fillStyle = "#b06bff";
-      if(sceneMode === "undersea") sctx.fillStyle = "#35ffb2";
+      if(sceneMode === "deepfi") sctx.fillStyle = "#35ffb2";
       sctx.fillRect(0,0,w,h);
       sctx.globalAlpha = 1;
     }
