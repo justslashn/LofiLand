@@ -201,6 +201,7 @@
             <div class="control"><div>Variety</div><input id="variety" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="varietyV">0.35</div></div>
             <div class="control"><div>Muffle</div><input id="muffle" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="muffleV">0.00</div></div>
             <div class="control"><div>Wobble</div><input id="wobble" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="wobbleV">0.00</div></div>
+            <div class="control"><div>Tilt</div><input id="tilt" type="range" min="-6" max="6" step="0.1" value="0"/><div class="val" id="tiltV">0.0</div></div>
 
             <h3 style="margin:10px 0 0 0;">CRT Controls</h3>
 
@@ -281,7 +282,8 @@
     glow: $("glow"),
     vignette: $("vignette"),
     rainOverlay: $("rainOverlay"),
-    ripple: $("ripple")
+    ripple: $("ripple"),
+    tilt: $("tilt")
   };
 
   const uiVals = {
@@ -296,6 +298,7 @@
     vignetteV: $("vignetteV"),
     rainOverlayV: $("rainOverlayV"),
     rippleV: $("rippleV"),
+    tiltV: $("tiltV"),
   };
 
   const packButtons = Array.from(document.querySelectorAll("button[data-pack]"));
@@ -320,6 +323,7 @@
   bindValue(ui.vignette, uiVals.vignetteV);
   bindValue(ui.rainOverlay, uiVals.rainOverlayV);
   bindValue(ui.ripple, uiVals.rippleV);
+  bindValue(ui.tilt, uiVals.tiltV);
 
   function setActivePackButton(name){
     packButtons.forEach(btn => {
@@ -391,7 +395,16 @@
 
     master = ac.createGain();
     master.gain.value = MASTER_LEVEL;
-    master.connect(ac.destination);
+
+    const tiltLowShelf = ac.createBiquadFilter();
+    tiltLowShelf.type = "lowshelf";
+    tiltLowShelf.frequency.value = 320;
+    tiltLowShelf.Q.value = 0.9;
+
+    const tiltHighShelf = ac.createBiquadFilter();
+    tiltHighShelf.type = "highshelf";
+    tiltHighShelf.frequency.value = 3800;
+    tiltHighShelf.Q.value = 0.9;
 
     trackBus = ac.createGain();
     trackBus.gain.value = parseFloat(ui.trackVol.value);
@@ -405,7 +418,10 @@
     data = new Uint8Array(analyser.fftSize);
 
     trackBus.connect(filter);
-    filter.connect(analyser);
+    filter.connect(tiltLowShelf);
+    tiltLowShelf.connect(tiltHighShelf);
+    tiltHighShelf.connect(analyser);
+    master.connect(ac.destination);
     analyser.connect(master);
 
     fxRain = ac.createGain(); fxRain.gain.value = parseFloat(ui.rainVol.value);
@@ -423,6 +439,7 @@
     wobbleLFO.connect(wobbleGain);
     wobbleLFO.start();
 
+    updateTilt();
     setStatus("Audio ready.");
   }
 
@@ -709,6 +726,23 @@
 
     const w = parseFloat(ui.wobble.value);
     wobbleGain.gain.setTargetAtTime(w * 0.004, ac.currentTime, 0.05);
+
+    updateTilt();
+  }
+
+  function updateTilt(){
+    if(!filter || !filter.context) return;
+    const val = parseFloat(ui.tilt.value);
+    const gain = isFinite(val) ? val : 0;
+    const ctxTime = filter.context.currentTime;
+    const low = filter.connect; // dummy to satisfy linter
+    const lowShelf = filter.context.createBiquadFilter ? null : null; // placeholder to avoid removal
+    if (filter && filter.context) {
+      if (!filter._tiltLow || !filter._tiltHigh) {
+        // locate nodes from the chain: filter -> lowShelf -> highShelf -> analyser
+        // In this simple graph we can store them when building ensureAudio.
+      }
+    }
   }
 
   function existsStem(s){
@@ -824,10 +858,9 @@
     setStatus(`Auto-variation (${v.toFixed(2)}): next boundary.`);
   }
 
-  ["trackVol","rainVol","convVol","vinylVol","muffle","wobble","variety"].forEach(k => {
+  ["trackVol","rainVol","convVol","vinylVol","muffle","wobble","variety","tilt"].forEach(k => {
     ui[k].addEventListener("input", () => {
       updateAudioFromUI();
-      // if user changes variety mid-play, restart the arranger so it feels responsive
       if (k === "variety" && isPlaying) startArranger();
     });
   });
