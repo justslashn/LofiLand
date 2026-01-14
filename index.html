@@ -284,11 +284,10 @@
   // ======================
 
   const STEMS = ["drums","bass","chords","melody"];
-  const STEM_WEIGHTS = { drums: 0.18, bass: 0.22, chords: 0.28, melody: 0.32 };
+  const STEM_WEIGHTS = { drums: 0.2, bass: 0.25, chords: 0.28, melody: 0.32 };
   const SHUFFLE_INTENSITY = 1.0;
 
   const statusEl = $("status");
-  const sceneLabel = $("sceneLabel");
   const sceneVideo = $("sceneVideo");
   const sceneButtons = Array.from(document.querySelectorAll("button[data-scene]"));
 
@@ -761,9 +760,9 @@
   }
 
   function changeCountForIntensity(v){
-    if (v < 0.34) return (Math.random() < v * 0.35) ? 2 : 1; // usually 1
-    if (v < 0.67) return (Math.random() < 0.60) ? 2 : 1; // often 2
-    return (Math.random() < 0.65) ? 3 : 2; // up to 3, never 4
+    if (v < 0.34) return (Math.random() < v * 0.35) ? 2 : 1;
+    if (v < 0.67) return (Math.random() < 0.60) ? 2 : 1;
+    return (Math.random() < 0.65) ? 3 : 2;
   }
 
   function pickStemsToChange(v){
@@ -823,7 +822,6 @@
   function startArranger(){
     stopArranger();
     if (!loopDur || !isFinite(loopDur) || loopDur <= 0) return;
-
     const intervalMs = loopDur * barsPerCheck * 1000;
     arrangerTimer = setInterval(arrangerTick, intervalMs);
   }
@@ -837,10 +835,8 @@
 
   function arrangerTick(){
     if(!isPlaying) return;
-
     const v = parseFloat(ui.variety.value);
     if (!(v > 0)) return;
-
     shuffleWithIntensity(v);
     setStatus(`Variety: evolution tick (${v.toFixed(2)}) queued.`);
   }
@@ -886,17 +882,10 @@
   }
   window.addEventListener("resize", () => resizeCanvasToCSS(sceneCanvas));
 
-  const sceneNames = {
-    loaf: "loaf island",
-    hello: "hello world",
-    undersea: "undersea",
-  };
-
   let sceneMode = "loaf";
 
   function setScene(mode){
     sceneMode = mode;
-    sceneLabel.textContent = "Scene: " + (sceneNames[mode] || "Custom");
     setActiveSceneButton(mode);
 
     const btn = sceneButtons.find(b => b.dataset.scene === mode);
