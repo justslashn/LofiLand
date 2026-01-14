@@ -288,7 +288,7 @@
   const SHUFFLE_INTENSITY = 1.0;
 
   const statusEl = $("status");
-  const sceneVideo = $("sceneVideo");
+const sceneVideo = $("sceneVideo");
   const sceneButtons = Array.from(document.querySelectorAll("button[data-scene]"));
 
   function setActiveSceneButton(name){
@@ -760,9 +760,9 @@
   }
 
   function changeCountForIntensity(v){
-    if (v < 0.34) return (Math.random() < v * 0.35) ? 2 : 1;
-    if (v < 0.67) return (Math.random() < 0.60) ? 2 : 1;
-    return (Math.random() < 0.65) ? 3 : 2;
+    if (v < 0.34) return (Math.random() < v * 0.35) ? 2 : 1; // usually 1
+    if (v < 0.67) return (Math.random() < 0.60) ? 2 : 1; // often 2
+    return (Math.random() < 0.65) ? 3 : 2; // up to 3, never 4
   }
 
   function pickStemsToChange(v){
@@ -822,6 +822,7 @@
   function startArranger(){
     stopArranger();
     if (!loopDur || !isFinite(loopDur) || loopDur <= 0) return;
+
     const intervalMs = loopDur * barsPerCheck * 1000;
     arrangerTimer = setInterval(arrangerTick, intervalMs);
   }
@@ -835,8 +836,10 @@
 
   function arrangerTick(){
     if(!isPlaying) return;
+
     const v = parseFloat(ui.variety.value);
     if (!(v > 0)) return;
+
     shuffleWithIntensity(v);
     setStatus(`Variety: evolution tick (${v.toFixed(2)}) queued.`);
   }
@@ -881,12 +884,11 @@
     c.height = Math.floor(r.height * dpr);
   }
   window.addEventListener("resize", () => resizeCanvasToCSS(sceneCanvas));
-
   let sceneMode = "loaf";
 
   function setScene(mode){
     sceneMode = mode;
-    setActiveSceneButton(mode);
+setActiveSceneButton(mode);
 
     const btn = sceneButtons.find(b => b.dataset.scene === mode);
     const videoSrc = btn?.dataset.video;
