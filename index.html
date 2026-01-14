@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>LofiLand</title>
+  <!-- BPMs: lofi 80, deepfi 80, spacehop 110 -->
   <style>
     :root{
       --bg:#05070b;
@@ -152,6 +153,65 @@
       color: var(--muted);
       font-size: 11px;
     }
+
+    /* ===== Transport (icon buttons) ===== */
+    .transport{
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      justify-content: space-between;
+      margin: 10px 0 8px 0;
+    }
+    .iconbtn{
+      flex: 1 1 0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      height: 44px;
+      padding: 0;
+      border-radius: 14px;
+      background: rgba(103,217,255,.06);
+      border: 1px solid rgba(103,217,255,.22);
+      color: rgba(207,232,255,.92);
+    }
+    .iconbtn:hover{
+      border-color: rgba(103,217,255,.42);
+      background: rgba(103,217,255,.10);
+    }
+    .iconbtn:active{
+      transform: translateY(1px);
+    }
+    .iconbtn svg{
+      width: 20px;
+      height: 20px;
+      display:block;
+      opacity: .95;
+    }
+    .iconbtn.play{
+      border-color: rgba(120,255,210,.28);
+      background: rgba(120,255,210,.06);
+    }
+    .iconbtn.play:hover{
+      border-color: rgba(120,255,210,.46);
+      background: rgba(120,255,210,.10);
+    }
+    .iconbtn.stop{
+      border-color: rgba(255,140,180,.28);
+      background: rgba(255,140,180,.06);
+    }
+    .iconbtn.stop:hover{
+      border-color: rgba(255,140,180,.46);
+      background: rgba(255,140,180,.10);
+    }
+    .iconbtn.shuffle{
+      border-color: rgba(176,107,255,.30);
+      background: rgba(176,107,255,.06);
+    }
+    .iconbtn.shuffle:hover{
+      border-color: rgba(176,107,255,.50);
+      background: rgba(176,107,255,.10);
+    }
+    /* =================================== */
   </style>
 </head>
 <body>
@@ -182,10 +242,32 @@
             <button data-pack="deepfi">deep fi</button>
             <button data-pack="spacehop">space-hop</button>
           </div>
-          <div class="btns">
-            <button id="play">Play</button>
-            <button id="pause">Stop</button>
-            <button id="shuffle">Shuffle</button>
+
+          <!-- Transport icon buttons (horizontal, below pack bubbles) -->
+          <div class="transport" aria-label="Transport controls">
+            <button id="play" class="iconbtn play" title="Play" aria-label="Play">
+              <!-- Play icon -->
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M9 7.5v9l8-4.5-8-4.5Z" fill="currentColor"/>
+              </svg>
+            </button>
+
+            <button id="pause" class="iconbtn stop" title="Stop" aria-label="Stop">
+              <!-- Stop icon -->
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M8 8h8v8H8V8Z" fill="currentColor"/>
+              </svg>
+            </button>
+
+            <button id="shuffle" class="iconbtn shuffle" title="Shuffle" aria-label="Shuffle">
+              <!-- Shuffle icon -->
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M16 4h4v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M20 4l-5 5c-.7.7-1.6 1-2.6 1H4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M4 14h8.4c1 0 1.9.3 2.6 1l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M16 20h4v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
           </div>
 
           <div class="hint">
@@ -206,7 +288,6 @@
             <div class="control"><div>Wobble</div><input id="wobble" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="wobbleV">0.00</div></div>
 
             <h3 style="margin:10px 0 0 0;">CRT Controls</h3>
-
 
             <div class="control"><div>Glow</div><input id="glow" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="glowV">0.00</div></div>
             <div class="control"><div>Vignette</div><input id="vignette" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="vignetteV">0.00</div></div>
