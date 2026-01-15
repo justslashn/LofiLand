@@ -113,7 +113,6 @@
       font-size: 12px;
     }
     input[type="range"]{ width:100%; }
-    input[type="checkbox"]{ width:44px; height:24px; accent-color: rgba(103,217,255,.85); }
     .control .val{
       text-align:right;
       color: var(--muted);
@@ -227,23 +226,24 @@
         <div class="panel">
           <h3>Vibe Mix</h3>
           <div class="grid">
-            <div class="control"><div>Track</div><input id="trackVol" type="range" min="0" max="1" step="0.01" value="0.8"/><div class="val" id="trackVolV">0.80</div></div>
-
+            <div class="control"><div>Track</div><input id="trackVol" type="range" min="0" max="1" step="0.01" value="0.80"/><div class="val" id="trackVolV">0.80</div></div>
             <div class="control"><div>Variety</div><input id="variety" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="varietyV">0.35</div></div>
+            <div class="control"><div>Rain</div><input id="rainVol" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="rainVolV">0.35</div></div>
+            <div class="control"><div>Conversation</div><input id="convVol" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="convVolV">0.35</div></div>
+            <div class="control"><div>Vinyl</div><input id="vinylVol" type="range" min="0" max="1" step="0.01" value="0.15"/><div class="val" id="vinylVolV">0.15</div></div>
+          </div>
 
-            <div class="control"><div>Rain</div><input id="rainVol" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="rainVolV">0.00</div></div>
-            <div class="control"><div>Conversation</div><input id="convVol" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="convVolV">0.00</div></div>
-            <div class="control"><div>Vinyl</div><input id="vinylVol" type="range" min="0" max="1" step="0.01" value="0.20"/><div class="val" id="vinylVolV">0.20</div></div>
+          <h3 style="margin-top:12px;">CRT Controls</h3>
+          <div class="grid">
+            <div class="control"><div>Muffle</div><input id="muffle" type="range" min="0" max="1" step="0.01" value="0.25"/><div class="val" id="muffleV">0.25</div></div>
+            <div class="control"><div>Wobble</div><input id="wobble" type="range" min="0" max="1" step="0.01" value="0.20"/><div class="val" id="wobbleV">0.20</div></div>
+            <div class="control"><div>Glow</div><input id="glow" type="range" min="0" max="1" step="0.01" value="0.30"/><div class="val" id="glowV">0.30</div></div>
+            <div class="control"><div>Vignette</div><input id="vignette" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="vignetteV">0.35</div></div>
+          </div>
 
-            <div class="control"><div>Muffle</div><input id="muffle" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="muffleV">0.00</div></div>
-            <div class="control"><div>Wobble</div><input id="wobble" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="wobbleV">0.00</div></div>
-            <h3 style="margin:10px 0 0 0;">CRT Controls</h3>
-
-            <div class="control"><div>Glow</div><input id="glow" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="glowV">0.00</div></div>
-            <div class="control"><div>Vignette</div><input id="vignette" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="vignetteV">0.00</div></div>
-            <div class="control"><div>Rain</div><input id="rainOverlay" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="rainOverlayV">0.00</div></div>
-            <div class="control"><div>Ripple</div><input id="ripple" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="rippleV">0.00</div></div>
-            <div class="control"><div>Full Self-Dialing</div><input id="fsd" type="checkbox"/><div class="val" id="fsdV">OFF</div></div>
+          <div style="margin-top:12px; display:flex; align-items:center; gap:10px;">
+            <input id="fsd" type="checkbox"/>
+            <label for="fsd" class="hint" style="cursor:pointer;">Full Self-Dialing</label>
           </div>
         </div>
       </div>
@@ -280,371 +280,241 @@
 <script>
   const $ = (id) => document.getElementById(id);
 
-  // ===== ASSET CONFIG =====
-  // Prefer local assets; fall back to CDN if running from the raw HTML file.
-  const USER = "justslashn";
-  const REPO = "LofiLand";
-  const REF  = "main";
-  const CDN_ASSET_BASE = `https://cdn.jsdelivr.net/gh/${USER}/${REPO}@${REF}/`;
-  const LOCAL_ASSET_BASE = "./";
-  let assetBase = LOCAL_ASSET_BASE;
-  const MASTER_LEVEL = 0.9;
-  // ======================
-
+  // ===== ASSETS =====
   const STEMS = ["drums","bass","chords","melody"];
-  const STEM_WEIGHTS = { drums: 0.2, bass: 0.25, chords: 0.28, melody: 0.32 };
-  const SHUFFLE_INTENSITY = 1.0;
+  let assetBase = "./";
 
-  const statusEl = $("status");
-  const debugEl = $("debug");
-  const sceneVideo = $("sceneVideo");
-  const sceneButtons = Array.from(document.querySelectorAll("button[data-scene]"));
-
-  function setActiveSceneButton(name){
-    sceneButtons.forEach(btn => {
-      btn.classList.toggle("active", btn.dataset.scene === name);
-    });
-  }
-
+  // ===== UI =====
   const ui = {
     play: $("play"),
     pause: $("pause"),
     shuffle: $("shuffle"),
+    fsd: $("fsd"),
+    wave: $("wave"),
+    scene: $("scene"),
+    sceneVideo: $("sceneVideo"),
 
-    trackVol: $("trackVol"),
-    rainVol: $("rainVol"),
-    convVol: $("convVol"),
-    vinylVol: $("vinylVol"),
-    variety: $("variety"),
+    trackVol: $("trackVol"), trackVolV: $("trackVolV"),
+    variety: $("variety"), varietyV: $("varietyV"),
+    rainVol: $("rainVol"), rainVolV: $("rainVolV"),
+    convVol: $("convVol"), convVolV: $("convVolV"),
+    vinylVol: $("vinylVol"), vinylVolV: $("vinylVolV"),
 
-    muffle: $("muffle"),
-    wobble: $("wobble"),
-    glow: $("glow"),
-    vignette: $("vignette"),
-    rainOverlay: $("rainOverlay"),
-    ripple: $("ripple"),
-    fsd: $("fsd")
+    muffle: $("muffle"), muffleV: $("muffleV"),
+    wobble: $("wobble"), wobbleV: $("wobbleV"),
+    glow: $("glow"), glowV: $("glowV"),
+    vignette: $("vignette"), vignetteV: $("vignetteV"),
   };
+  const statusEl = $("status");
+  const debugEl = $("debug");
 
-  const uiVals = {
-    trackVolV: $("trackVolV"),
-    rainVolV: $("rainVolV"),
-    convVolV: $("convVolV"),
-    vinylVolV: $("vinylVolV"),
-    varietyV: $("varietyV"),
-    muffleV: $("muffleV"),
-    wobbleV: $("wobbleV"),
-    glowV: $("glowV"),
-    vignetteV: $("vignetteV"),
-    rainOverlayV: $("rainOverlayV"),
-    rippleV: $("rippleV"),
-    fsdV: $("fsdV"),
-  };
-
-  const packButtons = Array.from(document.querySelectorAll("button[data-pack]"));
-  let currentPack =
-    packButtons.find(btn => btn.classList.contains("active"))?.dataset.pack ||
-    packButtons[0]?.dataset.pack ||
-    "spacehop";
-
-  function bindValue(el, out){
-    const sync = () => out.textContent = Number(el.value).toFixed(2);
-    el._sync = sync;
-    el.addEventListener("input", sync);
-    sync();
-  }
-  bindValue(ui.trackVol, uiVals.trackVolV);
-  bindValue(ui.rainVol, uiVals.rainVolV);
-  bindValue(ui.convVol, uiVals.convVolV);
-  bindValue(ui.vinylVol, uiVals.vinylVolV);
-  bindValue(ui.variety, uiVals.varietyV);
-  bindValue(ui.muffle, uiVals.muffleV);
-  bindValue(ui.wobble, uiVals.wobbleV);
-  bindValue(ui.glow, uiVals.glowV);
-  bindValue(ui.vignette, uiVals.vignetteV);
-  bindValue(ui.rainOverlay, uiVals.rainOverlayV);
-  bindValue(ui.ripple, uiVals.rippleV);
-
-  function setActivePackButton(name){
-    packButtons.forEach(btn => {
-      btn.classList.toggle("active", btn.dataset.pack === name);
-    });
+  function setStatus(msg){
+    statusEl.textContent = msg;
   }
 
-  async function handlePackSelect(name){
-    currentPack = name;
-    setActivePackButton(name);
-    try {
-      await ensureAudio();
-      if(ac.state === "suspended") await ac.resume();
-      await loadPack(currentPack);
-      startAll();
-      try { setScene(sceneMode); } catch {}
-      updateAudioFromUI();
-    } catch (err) {
-      setStatus("Error: " + err.message);
-      console.error(err);
-    }
+  function _registerSource(listObj, key, src, gainNode){
+    if(!src) return;
+    const id = _srcId++;
+    src.__id = id;
+    if (!listObj[key]) listObj[key] = [];
+    listObj[key].push({ id, src, gainNode });
+    src.addEventListener?.("ended", () => _unregisterSource(listObj, key, id));
+    src.onended = (() => {
+      const prev = src.onended;
+      return function(){
+        try { _unregisterSource(listObj, key, id); } catch {}
+        try { if (typeof prev === "function") prev(); } catch {}
+      };
+    })();
   }
 
-  packButtons.forEach(btn => {
-    btn.addEventListener("click", () => handlePackSelect(btn.dataset.pack));
-  });
+  function _unregisterSource(listObj, key, id){
+    const arr = listObj[key];
+    if(!arr || !arr.length) return;
+    const i = arr.findIndex(x => x.id === id);
+    if(i >= 0) arr.splice(i, 1);
+  }
 
-  // Audio Engine
-  let ac = null;
-  let master = null;
-
-  let trackBus = null;
-  let fxRain = null, fxConv = null, fxVinyl = null;
-  let filter = null;
-
-  let wobbleLFO = null, wobbleGain = null;
-
-  let analyser = null;
-  let data = null;
-
-  // FX buffers + sources
-  let fxBuffers = {};
-  let fxSources = {};
-
-  // Manifest + stem buffers
-  let manifest = {};
-  let stemFiles = { drums: [], bass: [], chords: [], melody: [] };
-  let stemBuffers = { drums: [], bass: [], chords: [], melody: [] };
-
-  // Stem playback
-  let stemChannelGain = {};
-  let stemActive = {}; // { stem: { src, gainNode, variantIndex, _startTime } }
-  let arrangement = { drums:true, bass:true, chords:true, melody:true };
-
-  // Timing
-  let isPlaying = false;
-  let loopDur = 0;
-  let playStartTime = 0;
-
-  // Autonomous arranger
-  let arrangerTimer = null;
-  let barsPerCheck = 4; // musical default: check every 4 bars
-
-  function setStatus(msg){ statusEl.textContent = msg; }
-
-  function fmt(n, d=3){
-    if (n === null || n === undefined || !isFinite(n)) return "—";
+  function _fmt(n, d=3){
+    if(n === null || n === undefined || !isFinite(n)) return "—";
     return Number(n).toFixed(d);
   }
 
   function updateDebug(reason=""){
-    if (!debugEl) return;
+    if(!debugEl) return;
+
     const lines = [];
     lines.push(`pack: ${currentPack}${reason ? "  ("+reason+")" : ""}`);
     lines.push(`playing: ${isPlaying}   ac: ${ac ? ac.state : "none"}   base: ${assetBase}`);
-    lines.push(`loopDur: ${fmt(loopDur,3)}s   bars/check: ${barsPerCheck}`);
+    lines.push(`loopDur: ${_fmt(loopDur,3)}s   bars/check: ${barsPerCheck}`);
+
     if (ac && isPlaying){
-      lines.push(`t: now ${fmt(ac.currentTime,3)}   start ${fmt(playStartTime,3)}   nextBoundary ${fmt(nextLoopBoundaryTime(),3)}`);
+      const now = ac.currentTime;
+      lines.push(`t: now ${_fmt(now,3)}   start ${_fmt(playStartTime,3)}   nextBoundary ${_fmt(nextLoopBoundaryTime(),3)}`);
     }
+
     lines.push("");
     lines.push("stems:");
+
     for (const s of STEMS){
-      const files = stemFiles?.[s] || [];
       const active = !!arrangement?.[s];
-      const entry = stemActive?.[s];
-      const idx = entry?.variantIndex;
-      const name = (idx !== undefined && files[idx]) ? files[idx] : (idx !== undefined ? `#${idx}` : "—");
-      const started = entry?.src?._startTime;
-      const playing = !!entry?.src;
-      lines.push(`  ${s.padEnd(6)} ${active ? "ON " : "off"}  var=${idx===undefined?"—":idx}  file=${name}  src=${playing?"yes":"no"}  t0=${fmt(started,3)}`);
+      const files = stemFiles?.[s] || [];
+      const latest = stemActive?.[s];
+      const latestIdx = latest?.variantIndex;
+      const latestName = (latestIdx !== undefined && files[latestIdx]) ? files[latestIdx] : (latestIdx !== undefined ? `#${latestIdx}` : "—");
+
+      const chGainNode = stemChannelGain?.[s];
+      const chGain = chGainNode ? chGainNode.gain.value : 0;
+
+      const srcList = stemSources?.[s] || [];
+      const ids = srcList.map(x => x.id).join(",");
+
+      const latestFade = latest?.gainNode ? latest.gainNode.gain.value : 0;
+
+      lines.push(
+        `  ${s.padEnd(6)} ${active ? "ON " : "off"}  count=${String(srcList.length).padStart(2," ")}  chGain=${_fmt(chGain,2)}  fade=${_fmt(latestFade,2)}  var=${latestIdx===undefined?"—":latestIdx}  file=${latestName}`
+      );
+      if (srcList.length > 1){
+        lines.push(`         ids=[${ids}]`);
+      }
     }
+
     lines.push("");
     lines.push("fx:");
-    lines.push(`  rain  vol=${ui.rainVol.value}  src=${fxSources?.rain ? "yes":"no"}`);
-    lines.push(`  conv  vol=${ui.convVol.value}  src=${fxSources?.conv ? "yes":"no"}`);
-    lines.push(`  vinyl vol=${ui.vinylVol.value}  src=${fxSources?.vinyl ? "yes":"no"}`);
+    for (const k of ["rain","conv","vinyl"]){
+      const list = fxSourcesList?.[k] || [];
+      const vol =
+        k === "rain" ? ui?.rainVol?.value :
+        k === "conv" ? ui?.convVol?.value :
+        ui?.vinylVol?.value;
+      lines.push(`  ${k.padEnd(5)} vol=${vol}  count=${String(list.length).padStart(2," ")}`);
+    }
+
     debugEl.textContent = lines.join("\n");
   }
 
-  async function ensureAudio(){
-    if(ac) return;
-    ac = new (window.AudioContext || window.webkitAudioContext)();
+  // ===== PACK SELECT =====
+  const packButtons = Array.from(document.querySelectorAll("button[data-pack]"));
+  let currentPack =
+    packButtons.find(btn => btn.classList.contains("active"))?.dataset.pack || "spacehop";
 
-    master = ac.createGain();
-    master.gain.value = MASTER_LEVEL;
-    master.connect(ac.destination);
+  const sceneButtons = Array.from(document.querySelectorAll("button[data-scene]"));
+  let sceneMode = sceneButtons[0]?.dataset.scene || "loaf";
 
-    trackBus = ac.createGain();
-    trackBus.gain.value = parseFloat(ui.trackVol.value);
+  // ===== AUDIO STATE =====
+  let ac = null;
+  let master = null;
 
-    filter = ac.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = 16000;
+  let stemChannelGain = {};
+  let stemFiles = { drums:[], bass:[], chords:[], melody:[] };
+  let stemBuffers = { drums:[], bass:[], chords:[], melody:[] };
+  let fxBuffers = {};
+  let fxSources = { rain:null, conv:null, vinyl:null };
+  let manifest = null;
 
-    analyser = ac.createAnalyser();
-    analyser.fftSize = 2048;
-    data = new Uint8Array(analyser.fftSize);
+  let isPlaying = false;
+  let playStartTime = 0;
+  let loopDur = 16; // seconds for 4 bars @ 60 bpm (placeholder until computed)
+  let barsPerCheck = 4;
 
-    trackBus.connect(filter);
-    filter.connect(analyser);
-    analyser.connect(master);
+  let arrangement = { drums:true, bass:true, chords:true, melody:true };
+  let stemVarIndex = { drums:0, bass:0, chords:0, melody:0 };
+  let stemActive = {};
 
-    fxRain = ac.createGain(); fxRain.gain.value = parseFloat(ui.rainVol.value);
-    fxConv = ac.createGain(); fxConv.gain.value = parseFloat(ui.convVol.value);
-    fxVinyl = ac.createGain(); fxVinyl.gain.value = parseFloat(ui.vinylVol.value);
-    fxRain.connect(master);
-    fxConv.connect(master);
-    fxVinyl.connect(master);
+  // Debug tracking: keep a list of *all* active sources per stem so we can spot overlaps.
+  let stemSources = { drums: [], bass: [], chords: [], melody: [] };
+  let fxSourcesList = { rain: [], conv: [], vinyl: [] };
+  let _srcId = 1;
 
-    wobbleLFO = ac.createOscillator();
-    wobbleGain = ac.createGain();
-    wobbleLFO.type = "sine";
-    wobbleLFO.frequency.value = 0.25;
-    wobbleGain.gain.value = 0.0;
-    wobbleLFO.connect(wobbleGain);
-    wobbleLFO.start();
+  // ===== FX NODES =====
+  let muffleLP = null;
+  let wobbleLFO = null;
+  let wobbleGain = null;
 
-    setStatus("Audio ready.");
-    updateDebug("audio ready");
+  // ===== SELF DIALING =====
+  let fsdEnabled = false;
+  let fsdTask = null;
+
+  function clamp01(x){ return Math.min(1, Math.max(0, x)); }
+
+  function fsdQuantizeDeadzone(x){
+    x = clamp01(x);
+    if (x > 0 && x < 0.2) return 0;
+    return x;
   }
 
-  async function fetchWithFallback(path, loader){
-    const bases = assetBase === LOCAL_ASSET_BASE
-      ? [LOCAL_ASSET_BASE, CDN_ASSET_BASE]
-      : [assetBase, CDN_ASSET_BASE];
-
-    let lastErr = null;
-    for (const base of bases) {
-      try {
-        const result = await loader(base + path);
-        assetBase = base;
-        return result;
-      } catch (err) {
-        lastErr = err;
-      }
-    }
-    throw lastErr ?? new Error("Unable to fetch asset: " + path);
+  // ===== HELPERS =====
+  async function fetchJson(url){
+    const r = await fetch(url, { cache: "no-store" });
+    if(!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+    return r.json();
+  }
+  async function fetchArrayBuffer(url){
+    const r = await fetch(url);
+    if(!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+    return r.arrayBuffer();
   }
 
-  async function fetchJson(path){
-    return await fetchWithFallback(path, async (url) => {
-      const res = await fetch(url, { cache: "no-store" });
-      if(!res.ok) throw new Error("Missing file: " + url);
-      return await res.json();
-    });
+  function setPackActive(name){
+    packButtons.forEach(b => b.classList.toggle("active", b.dataset.pack === name));
+    currentPack = name;
   }
 
-  async function loadBuffer(path){
-    return await fetchWithFallback(path, async (url) => {
-      const res = await fetch(url, { cache: "no-store" });
-      if(!res.ok) throw new Error("Missing file: " + url);
-      const arr = await res.arrayBuffer();
-      return await ac.decodeAudioData(arr);
-    });
+  function setSceneActive(name){
+    sceneButtons.forEach(b => b.classList.toggle("active", b.dataset.scene === name));
+    sceneMode = name;
+  }
+
+  function computeLoopDurFromBpm(bpm){
+    // 4 bars @ 4/4 = 16 beats
+    return (60 / bpm) * 16;
+  }
+
+  function packBpm(pack){
+    // keep this simple; you’ve documented BPMs above too
+    if(pack === "spacehop") return 110;
+    if(pack === "deepfi") return 80;
+    return 80; // lofi
+  }
+
+  function nextLoopBoundaryTime(){
+    if(!ac || !isPlaying) return 0;
+    const now = ac.currentTime;
+    const elapsed = now - playStartTime;
+    const n = Math.ceil(elapsed / loopDur);
+    return playStartTime + n * loopDur;
+  }
+
+  function safeBoundaryTime(offset = 0){
+    const t = nextLoopBoundaryTime();
+    return t + offset;
   }
 
   function makeLoopSource(buffer, destination, startTime){
     const src = ac.createBufferSource();
     src.buffer = buffer;
     src.loop = true;
-    src._startTime = startTime;
     src.connect(destination);
+    src.start(startTime);
     return src;
   }
 
-  function stopAll(){
-    stopFSD();
-    const now = ac ? ac.currentTime : 0;
-    for (const k of Object.keys(fxSources)) {
-      const src = fxSources[k];
-      try {
-        const stopAt = Math.max(now, src?._startTime || now);
-        src?.stop(stopAt);
-      } catch {}
-    }
-    fxSources = {};
-
-    for (const s of Object.keys(stemActive)) {
-      const entry = stemActive[s];
-      try {
-        const stopAt = Math.max(now, entry?.src?._startTime || now);
-        entry?.src?.stop(stopAt);
-      } catch {}
-    }
-    stemActive = {};
-
-    if (master && ac) {
-      master.gain.cancelScheduledValues(ac.currentTime);
-      master.gain.setValueAtTime(0, ac.currentTime);
-    }
-
-    isPlaying = false;
-    updateDebug("stopped");
+  function stopSourceAt(src, t){
+    try{ src.stop(t); }catch{}
   }
 
-  function nextLoopBoundaryTime(){
-    const now = ac.currentTime;
-    const elapsed = Math.max(0, now - playStartTime);
-    const n = Math.ceil(elapsed / loopDur);
-    return playStartTime + n * loopDur;
+  function hardMute(){
+    if(master) master.gain.setValueAtTime(0, ac.currentTime);
   }
 
-  function connectWobbleToActive(){
-    try { wobbleGain.disconnect(); } catch {}
-    if (stemActive.melody?.src) wobbleGain.connect(stemActive.melody.src.playbackRate);
-    if (stemActive.chords?.src) wobbleGain.connect(stemActive.chords.src.playbackRate);
+  function unmuteTo(v=1){
+    if(master) master.gain.setValueAtTime(v, ac.currentTime);
   }
 
-  function startStem(stemName, variantIndex, when, fadeSeconds = 0.12){
-    const bufArr = stemBuffers[stemName];
-    if (!bufArr || bufArr.length === 0) return;
-
-    const buf = bufArr[variantIndex];
-
-    const g = ac.createGain();
-    g.gain.setValueAtTime(0, when);
-    g.gain.linearRampToValueAtTime(1, when + fadeSeconds);
-
-    g.connect(stemChannelGain[stemName]);
-
-    const src = ac.createBufferSource();
-    src.buffer = buf;
-    src.loop = true;
-    src._startTime = when;
-    src.connect(g);
-    src.start(when);
-
-    const old = stemActive[stemName];
-    if (old?.gainNode && old?.src) {
-      old.gainNode.gain.setValueAtTime(old.gainNode.gain.value, when);
-      old.gainNode.gain.linearRampToValueAtTime(0, when + fadeSeconds);
-      try {
-        const stopAt = Math.max(when, old.src._startTime || when);
-        old.src.stop(stopAt + 0.03);
-      } catch {}
-    }
-
-    stemActive[stemName] = { src, gainNode: g, variantIndex };
-  }
-
-  function pickDifferentVariantIndex(stemName){
-    const n = stemBuffers[stemName]?.length ?? 0;
-    if (n <= 1) return stemActive[stemName]?.variantIndex ?? 0;
-    const current = stemActive[stemName]?.variantIndex ?? 0;
-
-    let next = current;
-    for (let tries = 0; tries < 10 && next === current; tries++) {
-      next = Math.floor(Math.random() * n);
-    }
-    return next;
-  }
-
+  // ===== LOAD PACK =====
   async function loadPack(packName){
-    await ensureAudio();
-    stopArranger();
-    stopAll();
-
-    manifest = {};
-    stemFiles = { drums: [], bass: [], chords: [], melody: [] };
-    stemBuffers = { drums: [], bass: [], chords: [], melody: [] };
-    fxBuffers = {};
+    const bpm = packBpm(packName);
+    loopDur = computeLoopDurFromBpm(bpm);
 
     const loadedCounts = { drums: 0, bass: 0, chords: 0, melody: 0 };
     const totals = { drums: 0, bass: 0, chords: 0, melody: 0 };
@@ -666,542 +536,551 @@
       totals[s] = arr.length;
     }
 
-    if (stemFiles.drums.length === 0) {
-      throw new Error(`Manifest has no "drums" entries: ${manifestUrl}`);
-    }
+    reportStatus("Loading stems");
 
-    setStatus("Loading stem buffers...");
-
-    const coreLoads = STEMS.map(async (s) => {
-      const files = stemFiles[s];
+    // Load stems
+    for (const s of STEMS){
       stemBuffers[s] = [];
-      if (!files || files.length === 0) return;
-      const buf = await loadBuffer(packPath(files[0]));
-      stemBuffers[s].push(buf);
-      loadedCounts[s] = 1;
-      reportStatus();
-    });
-
-    await Promise.all(coreLoads);
-
-    loopDur = stemBuffers.drums[0].duration;
-
-    // FX (fixed filenames)
-    fxBuffers.rain  = await loadBuffer(fxPath("rain.mp3"));
-    fxBuffers.conv  = await loadBuffer(fxPath("cafe_chatter.mp3"));
-    fxBuffers.vinyl = await loadBuffer(fxPath("vinyl_noise.mp3"));
-
-    arrangement = {
-      drums: stemBuffers.drums.length > 0,
-      bass: stemBuffers.bass.length > 0,
-      chords: stemBuffers.chords.length > 0,
-      melody: stemBuffers.melody.length > 0
-    };
-
-    reportStatus("Core ready");
-
-    const remainingTasks = [];
-    for (const s of STEMS) {
-      const files = stemFiles[s] || [];
-      for (let i = 1; i < files.length; i++) {
-        remainingTasks.push({ stem: s, file: files[i] });
+      for (let i=0;i<stemFiles[s].length;i++){
+        const file = stemFiles[s][i];
+        const url = packPath(file);
+        const ab = await fetchArrayBuffer(url);
+        const buf = await ac.decodeAudioData(ab.slice(0));
+        stemBuffers[s].push(buf);
+        loadedCounts[s]++;
+        reportStatus("Loading stems");
       }
     }
 
-    let taskIndex = 0;
-    const concurrency = Math.min(3, remainingTasks.length || 0);
-
-    const worker = async () => {
-      while (taskIndex < remainingTasks.length) {
-        const current = remainingTasks[taskIndex++];
-        try {
-          const buf = await loadBuffer(packPath(current.file));
-          stemBuffers[current.stem].push(buf);
-          loadedCounts[current.stem]++;
-          reportStatus();
-        } catch (err) {
-          console.warn("Failed to load", current.file, err);
-        }
+    // Load FX buffers listed in manifest.fx (optional)
+    fxBuffers = {};
+    const fxList = (manifest && manifest.fx) ? manifest.fx : {};
+    const fxNames = Object.keys(fxList);
+    if (fxNames.length){
+      setStatus("Loading FX...");
+      for (const name of fxNames){
+        const file = fxList[name];
+        const url = fxPath(file);
+        const ab = await fetchArrayBuffer(url);
+        fxBuffers[name] = await ac.decodeAudioData(ab.slice(0));
       }
-    };
+    }
 
-    if (remainingTasks.length > 0) {
-      Promise.all(Array.from({ length: Math.max(1, concurrency) }, worker)).then(() => {
-        const counts = STEMS.map(s => `${s}:${stemBuffers[s].length}`).join(", ");
-        const sourceLabel = assetBase === LOCAL_ASSET_BASE ? "local" : "CDN";
-        setStatus(`Loaded ${packName} (${sourceLabel}). Variants: ${counts}`);
-        updateDebug("pack loaded");
-      });
-    } else {
-      const counts = STEMS.map(s => `${s}:${stemBuffers[s].length}`).join(", ");
-      const sourceLabel = assetBase === LOCAL_ASSET_BASE ? "local" : "CDN";
-      setStatus(`Loaded ${packName} (${sourceLabel}). Variants: ${counts}`);
-      updateDebug("pack loaded");
+    setStatus(`Loaded ${packName}.`);
+    updateDebug("loaded");
+  }
+
+  // ===== AUDIO GRAPH INIT =====
+  function ensureAudio(){
+    if(ac) return;
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+
+    master = ac.createGain();
+    master.gain.value = parseFloat(ui.trackVol.value);
+    master.connect(ac.destination);
+
+    // Muffle (lowpass)
+    muffleLP = ac.createBiquadFilter();
+    muffleLP.type = "lowpass";
+    muffleLP.frequency.value = 18000;
+    muffleLP.Q.value = 0.707;
+
+    // Wobble (simple gain modulation on master)
+    wobbleGain = ac.createGain();
+    wobbleGain.gain.value = 1;
+
+    wobbleLFO = ac.createOscillator();
+    wobbleLFO.type = "sine";
+    wobbleLFO.frequency.value = 0.2;
+    const wobbleDepth = ac.createGain();
+    wobbleDepth.gain.value = 0;
+    wobbleLFO.connect(wobbleDepth);
+    wobbleDepth.connect(wobbleGain.gain);
+    wobbleLFO.start();
+
+    // routing: stems -> stem gains -> muffle -> wobbleGain -> master
+    muffleLP.connect(wobbleGain);
+    wobbleGain.connect(master);
+
+    // Create stem channel gains and connect to muffle
+    stemChannelGain = {};
+    for (const s of STEMS){
+      const g = ac.createGain();
+      g.gain.value = 1;
+      g.connect(muffleLP);
+      stemChannelGain[s] = g;
+    }
+
+    // FX gains: connect directly to master (not affected by muffle/wobble)
+    // We'll create these as needed in startAll.
+  }
+
+  // ===== START/STOP =====
+  function randomizeInitialArrangement(){
+    // ensure at least 1 stays same across transitions doesn’t apply here; this is initial seeding.
+    // keep drums on; randomly toggle others with a gentle bias toward ON.
+    arrangement.drums = true;
+    arrangement.bass = Math.random() < 0.85;
+    arrangement.chords = Math.random() < 0.85;
+    arrangement.melody = Math.random() < 0.80;
+
+    // random variants (if available)
+    for (const s of STEMS){
+      const n = (stemBuffers[s] || []).length;
+      stemVarIndex[s] = n ? Math.floor(Math.random() * n) : 0;
     }
   }
 
   function startAll(){
     if(isPlaying) return;
+    ensureAudio();
 
-    if (master && ac) {
-      master.gain.cancelScheduledValues(ac.currentTime);
-      master.gain.setValueAtTime(MASTER_LEVEL, ac.currentTime);
-    }
+    randomizeInitialArrangement();
 
-    const t0 = ac.currentTime + 0.10;
+    const bpm = packBpm(currentPack);
+    loopDur = computeLoopDurFromBpm(bpm);
+
+    const t0 = ac.currentTime + 0.05;
     playStartTime = t0;
-
-    stemChannelGain = {};
-    for (const s of STEMS) {
-      if ((stemBuffers[s]?.length ?? 0) === 0) continue;
-      const g = ac.createGain();
-      g.gain.value = arrangement[s] ? 1 : 0;
-      g.connect(trackBus);
-      stemChannelGain[s] = g;
-    }
-
-    // Randomize starting variants so first play doesn't always sound the same
-    for (const s of STEMS) {
-      if (!stemChannelGain[s]) continue;
-      const n = stemBuffers[s]?.length ?? 0;
-      const startIdx = n > 0 ? Math.floor(Math.random() * n) : 0;
-      startStem(s, startIdx, t0, 0.08);
-    }
-
-    fxSources.rain  = makeLoopSource(fxBuffers.rain, fxRain, t0);
-    fxSources.conv  = makeLoopSource(fxBuffers.conv, fxConv, t0);
-    fxSources.vinyl = makeLoopSource(fxBuffers.vinyl, fxVinyl, t0);
-    Object.values(fxSources).forEach(src => src.start(t0));
-
-    connectWobbleToActive();
-
     isPlaying = true;
+
+    // Master volume
+    master.gain.setValueAtTime(parseFloat(ui.trackVol.value), ac.currentTime);
+
+    // FX gains
+    const fxRain  = ac.createGain(); fxRain.gain.value  = parseFloat(ui.rainVol.value);  fxRain.connect(master);
+    const fxConv  = ac.createGain(); fxConv.gain.value  = parseFloat(ui.convVol.value);  fxConv.connect(master);
+    const fxVinyl = ac.createGain(); fxVinyl.gain.value = parseFloat(ui.vinylVol.value); fxVinyl.connect(master);
+
+    // Start FX if available
+    fxSources = { rain:null, conv:null, vinyl:null };
+    if (fxBuffers.rain){
+      fxSources.rain  = makeLoopSource(fxBuffers.rain, fxRain, t0);
+      _registerSource(fxSourcesList, "rain", fxSources.rain, null);
+    }
+    if (fxBuffers.conv){
+      fxSources.conv  = makeLoopSource(fxBuffers.conv, fxConv, t0);
+      _registerSource(fxSourcesList, "conv", fxSources.conv, null);
+    }
+    if (fxBuffers.vinyl){
+      fxSources.vinyl = makeLoopSource(fxBuffers.vinyl, fxVinyl, t0);
+      _registerSource(fxSourcesList, "vinyl", fxSources.vinyl, null);
+    }
+
+    // Start stems
+    stemActive = {};
+    for (const s of STEMS){
+      if(!arrangement[s]) {
+        stemChannelGain[s].gain.setValueAtTime(0, t0);
+        continue;
+      }
+      const v = stemVarIndex[s] || 0;
+      stemChannelGain[s].gain.setValueAtTime(1, t0);
+      startStem(s, v, t0, true);
+    }
+
     setStatus("Playing.");
     updateDebug("start");
-
-    startArranger();
-
-    maybeStartFSD();
   }
 
-  function updateAudioFromUI(){
+  function stopAll(){
     if(!ac) return;
+    if(!isPlaying){
+      hardMute();
+      setStatus("Stopped.");
+      updateDebug("stopped");
+      return;
+    }
 
-    trackBus.gain.setTargetAtTime(parseFloat(ui.trackVol.value), ac.currentTime, 0.03);
-    fxRain.gain.setTargetAtTime(parseFloat(ui.rainVol.value), ac.currentTime, 0.03);
-    fxConv.gain.setTargetAtTime(parseFloat(ui.convVol.value), ac.currentTime, 0.03);
-    fxVinyl.gain.setTargetAtTime(parseFloat(ui.vinylVol.value), ac.currentTime, 0.03);
+    const t = ac.currentTime + 0.01;
 
-    const m = parseFloat(ui.muffle.value);
-    const freq = 800 + (16000 - 800) * Math.pow(1 - m, 2.2);
-    filter.frequency.setTargetAtTime(freq, ac.currentTime, 0.05);
+    hardMute();
 
-    const w = parseFloat(ui.wobble.value);
-    wobbleGain.gain.setTargetAtTime(w * 0.004, ac.currentTime, 0.05);
+    // Stop stems
+    for (const s of STEMS){
+      const obj = stemActive[s];
+      if(obj && obj.src) stopSourceAt(obj.src, t);
+    }
+
+    // Stop FX
+    for (const k of ["rain","conv","vinyl"]){
+      const src = fxSources[k];
+      if(src) stopSourceAt(src, t);
+    }
+
+    isPlaying = false;
+    stemActive = {};
+    stemSources = { drums: [], bass: [], chords: [], melody: [] };
+    fxSourcesList = { rain: [], conv: [], vinyl: [] };
+
+    setStatus("Stopped.");
+    updateDebug("stopped");
   }
 
-  // ===== Full Self-Dialing (FSD) =====
-  // FSD slowly "dials" one mix slider at a time over 4 bars, then moves on.
-  // Excludes: trackVol, variety, and all CRT controls.
-  const FSD_KEYS = ["rainVol","convVol","vinylVol","muffle","wobble"];
-  const FSD_LABEL = { rainVol:"Rain", convVol:"Conversation", vinylVol:"Vinyl", muffle:"Muffle", wobble:"Wobble" };
+  // ===== STEM START WITH CROSSFADE =====
+  function startStem(stemName, variantIndex, when, immediate=false){
+    const buf = stemBuffers[stemName]?.[variantIndex];
+    if(!buf) return;
 
-  let fsdEnabled = false;
-  let fsdAnim = null;      // interval id
-  let fsdNextTimer = null; // timeout id
-  let fsdLastKey = null;
+    const src = ac.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
 
-  function setFsdUI(on){
-    if (!ui.fsd || !uiVals.fsdV) return;
-    ui.fsd.checked = !!on;
-    uiVals.fsdV.textContent = on ? "ON" : "OFF";
-  }
+    const g = ac.createGain();
+    g.gain.value = immediate ? 1 : 0;
+    src.connect(g);
+    g.connect(stemChannelGain[stemName]);
 
-  function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+    src.start(when);
+    _registerSource(stemSources, stemName, src, g);
 
-  function fsdQuantizeDeadzone(x){
-    x = clamp01(x);
-    if (x > 0 && x < 0.2) return 0;
-    return x;
-  }
+    const old = stemActive[stemName];
+    stemActive[stemName] = { src, gainNode: g, variantIndex };
 
-  function getBarDurationSec(){
-    // Our loops are typically 4 bars; treat a "bar" as loopDur/4.
-    if (loopDur && isFinite(loopDur) && loopDur > 0) return loopDur / 4;
-    return 2.0; // fallback
-  }
+    if(old && old.src){
+      const fade = 0.08;
+      g.gain.setValueAtTime(0, when);
+      g.gain.linearRampToValueAtTime(1, when + fade);
 
-  function setSliderValue(key, value){
-    const el = ui[key];
-    if (!el) return;
-    const v = clamp01(value);
-    el.value = v.toFixed(2);
-    if (typeof el._sync === "function") el._sync();
-    updateAudioFromUI();
-  }
-
-  function stopFSD(){
-    if (fsdAnim){ clearInterval(fsdAnim); fsdAnim = null; }
-    if (fsdNextTimer){ clearTimeout(fsdNextTimer); fsdNextTimer = null; }
-  }
-
-  function pickNextFsdKey(){
-    const keys = FSD_KEYS.filter(k => ui[k]);
-    if (keys.length === 0) return null;
-    if (keys.length === 1) return keys[0];
-
-    // Prefer "different from last" when possible
-    const pool = keys.filter(k => k !== fsdLastKey);
-    const arr = pool.length ? pool : keys;
-    return arr[Math.floor(Math.random() * arr.length)];
-  }
-
-  function scheduleNextFsdDial(){
-    stopFSD();
-    if (!fsdEnabled || !isPlaying) return;
-
-    const key = pickNextFsdKey();
-    if (!key) return;
-
-    const start = parseFloat(ui[key].value) || 0;
-    const targetRaw = Math.random();
-    const target = fsdQuantizeDeadzone(targetRaw);
-
-    const barSec = getBarDurationSec();
-    const durationSec = barSec * 4; // 4 bars, per spec
-    const startMs = performance.now();
-    const durMs = Math.max(250, durationSec * 1000);
-
-    setStatus(`FSD: dialing ${FSD_LABEL[key]}…`);
-
-    fsdAnim = setInterval(() => {
-      const p = Math.min(1, (performance.now() - startMs) / durMs);
-      // Smooth-ish easing so it doesn't feel robotic
-      const eased = p * p * (3 - 2 * p);
-      const v = start + (target - start) * eased;
-      setSliderValue(key, v);
-
-      if (p >= 1){
-        clearInterval(fsdAnim);
-        fsdAnim = null;
-        fsdLastKey = key;
-
-        setStatus(`FSD: ${FSD_LABEL[key]} → ${target.toFixed(2)}`);
-
-        // short breather before choosing a new slider (half a bar)
-        const pauseMs = Math.max(120, barSec * 0.5 * 1000);
-        fsdNextTimer = setTimeout(scheduleNextFsdDial, pauseMs);
+      if(old.gainNode){
+        old.gainNode.gain.cancelScheduledValues(when);
+        old.gainNode.gain.setValueAtTime(old.gainNode.gain.value, when);
+        old.gainNode.gain.linearRampToValueAtTime(0, when + fade);
       }
-    }, 50);
-  }
-
-  function maybeStartFSD(){
-    if (!fsdEnabled || !isPlaying) return;
-    scheduleNextFsdDial();
-  }
-  // ===== /FSD =====
-
-  function existsStem(s){
-    return (stemBuffers[s]?.length ?? 0) > 0;
-  }
-
-  function pickWeightedStem(available, chosen){
-    const pool = available.filter(s => !chosen.has(s));
-    if (pool.length === 0) return null;
-    const total = pool.reduce((sum, s) => sum + (STEM_WEIGHTS[s] || 1), 0);
-    let r = Math.random() * total;
-    for (const stem of pool) {
-      r -= (STEM_WEIGHTS[stem] || 1);
-      if (r <= 0) return stem;
+      stopSourceAt(old.src, when + fade + 0.02);
     }
-    return pool[pool.length - 1];
   }
 
-  function changeCountForIntensity(v){
-    if (v < 0.34) return (Math.random() < v * 0.35) ? 2 : 1; // usually 1
-    if (v < 0.67) return (Math.random() < 0.60) ? 2 : 1; // often 2
-    return (Math.random() < 0.65) ? 3 : 2; // up to 3, never 4
-  }
+  // ===== SHUFFLE / EVOLUTION =====
+  function chooseStemsToChange(v){
+    // v in [0..1], choose 1..3 but never 4; also keep at least 1 unchanged.
+    // Bias: melody > chords > bass > drums
+    const weighted = [
+      { s:"melody", w: 0.45 },
+      { s:"chords", w: 0.30 },
+      { s:"bass",   w: 0.18 },
+      { s:"drums",  w: 0.07 },
+    ];
 
-  function pickStemsToChange(v){
-    const available = STEMS.filter(s => existsStem(s));
-    if (available.length === 0) return [];
-    const maxAllowed = Math.max(1, available.length - 1);
-    const desired = Math.max(1, Math.min(changeCountForIntensity(v), maxAllowed));
-    const chosen = new Set();
-    while (chosen.size < desired) {
-      const stem = pickWeightedStem(available, chosen);
-      if (!stem) break;
-      chosen.add(stem);
+    let k = 1;
+    if (v > 0.33) k = 2;
+    if (v > 0.75) k = 3;
+
+    const pick = [];
+    const pool = weighted.slice();
+    while(pick.length < k && pool.length){
+      const sum = pool.reduce((a,x)=>a+x.w,0);
+      let r = Math.random()*sum;
+      let idx = 0;
+      while(idx < pool.length){
+        r -= pool[idx].w;
+        if(r <= 0) break;
+        idx++;
+      }
+      pick.push(pool[idx].s);
+      pool.splice(idx,1);
     }
-    if (chosen.size === 0) chosen.add(available[0]);
-    return Array.from(chosen);
+    return pick;
+  }
+
+  function queueChanges(changes, boundaryTime){
+    // changes: {stem: {variantIndex, on:boolean}}; apply at boundaryTime
+    for (const s of STEMS){
+      if(!(s in changes)) continue;
+      const ch = changes[s];
+      arrangement[s] = !!ch.on;
+
+      if (!arrangement[s]){
+        stemChannelGain[s].gain.setValueAtTime(0, boundaryTime);
+        continue;
+      }
+      stemChannelGain[s].gain.setValueAtTime(1, boundaryTime);
+
+      if (typeof ch.variantIndex === "number"){
+        stemVarIndex[s] = ch.variantIndex;
+        startStem(s, ch.variantIndex, boundaryTime, false);
+      }
+    }
   }
 
   function shuffleWithIntensity(v){
-    const targets = pickStemsToChange(v);
-    const offBase = { drums: 0.08, bass: 0.15, chords: 0.25, melody: 0.45 };
+    const stemsToChange = chooseStemsToChange(v);
+
+    // At least one stem must remain unchanged; chooseStemsToChange never returns 4.
+    // Keep at least 3 stems ON (never mute more than 1). If we pick a mute, clamp.
+    const boundary = safeBoundaryTime(0);
+
+    const changes = {};
+    for (const s of stemsToChange){
+      const files = stemBuffers[s] || [];
+      if(!files.length) continue;
+
+      const newVar = Math.floor(Math.random() * files.length);
+
+      // Optional mask: small chance to toggle off at high intensity, but keep it gentle
+      let on = true;
+      const offProb = Math.min(0.12, 0.35 * v);
+      if (Math.random() < offProb) on = false;
+
+      changes[s] = { variantIndex: newVar, on };
+    }
+
+    // Enforce: at least 3 stems ON
     const nextArrangement = { ...arrangement };
-
-    targets.forEach(stem => {
-      const offProb = (offBase[stem] || 0.12) * v;
-      nextArrangement[stem] = Math.random() > offProb;
-    });
-
-    arrangement = nextArrangement;
-
-    for (const s of STEMS) {
-      if (!stemChannelGain[s]) continue;
-      const active = arrangement[s];
-      stemChannelGain[s].gain.setTargetAtTime(active ? 1 : 0, ac.currentTime, 0.08);
+    for (const s of STEMS){
+      if (changes[s]) nextArrangement[s] = !!changes[s].on;
+    }
+    const onCount = STEMS.filter(s => nextArrangement[s]).length;
+    if (onCount < 3){
+      // force one muted stem back on
+      const muted = STEMS.filter(s => !nextArrangement[s]);
+      if (muted.length){
+        const fix = muted[Math.floor(Math.random()*muted.length)];
+        if (!changes[fix]) changes[fix] = { variantIndex: stemVarIndex[fix]||0, on:true };
+        else changes[fix].on = true;
+      }
     }
 
-    const when = nextLoopBoundaryTime();
-    const variantChance = Math.min(1, 0.45 + v * 0.45);
-    targets.forEach(s => {
-      if (!stemChannelGain[s]) return;
-      if (Math.random() > variantChance) return;
-
-      const nextIdx = pickDifferentVariantIndex(s);
-      const curIdx = stemActive[s]?.variantIndex ?? 0;
-      if (nextIdx !== curIdx) startStem(s, nextIdx, when, 0.12);
-    });
-
-    setTimeout(connectWobbleToActive, 150);
-  }
-
-  function shuffleNow(){
-    if(!isPlaying) return;
-    const v = Math.max(parseFloat(ui.variety.value), SHUFFLE_INTENSITY);
-    shuffleWithIntensity(v);
-    setStatus(`Shuffle: strong mask+variation (${v.toFixed(2)}) queued.`);
-    updateDebug("shuffle");
-  }
-
-  function startArranger(){
-    stopArranger();
-    if (!loopDur || !isFinite(loopDur) || loopDur <= 0) return;
-
-    const intervalMs = loopDur * barsPerCheck * 1000;
-    arrangerTimer = setInterval(arrangerTick, intervalMs);
-  }
-
-  function stopArranger(){
-    if(arrangerTimer){
-      clearInterval(arrangerTimer);
-      arrangerTimer = null;
-    }
+    queueChanges(changes, boundary);
   }
 
   function arrangerTick(){
-    if(!isPlaying) return;
-
+    if(!isPlaying || !ac) return;
     const v = parseFloat(ui.variety.value);
-    if (!(v > 0)) return;
+    if(v <= 0) return;
 
-    shuffleWithIntensity(v);
+    const boundary = safeBoundaryTime(0);
+    const stemsToChange = chooseStemsToChange(v);
+
+    const changes = {};
+    for (const s of stemsToChange){
+      const files = stemBuffers[s] || [];
+      if(!files.length) continue;
+
+      // Small probability of keeping same variant
+      let newVar = stemVarIndex[s] || 0;
+      if (Math.random() < (0.25 + 0.4*v)){
+        newVar = Math.floor(Math.random() * files.length);
+      }
+      changes[s] = { variantIndex: newVar, on: true };
+    }
+
+    queueChanges(changes, boundary);
     setStatus(`Variety: evolution tick (${v.toFixed(2)}) queued.`);
     updateDebug("variety");
   }
 
-  ["trackVol","rainVol","convVol","vinylVol","muffle","wobble","variety"].forEach(k => {
-    ui[k].addEventListener("input", () => {
-      updateAudioFromUI();
-      if (k === "variety" && isPlaying) startArranger();
-    });
-  });
+  // ===== FSD =====
+  const fsdTargets = [
+    { id: "rainVol",   key: "rainVol",   label:"Rain" },
+    { id: "convVol",   key: "convVol",   label:"Conversation" },
+    { id: "vinylVol",  key: "vinylVol",  label:"Vinyl" },
+    { id: "muffle",    key: "muffle",    label:"Muffle" },
+    { id: "wobble",    key: "wobble",    label:"Wobble" },
+  ];
 
-  // FSD toggle
-  if (ui.fsd){
-    ui.fsd.addEventListener("change", () => {
-      fsdEnabled = !!ui.fsd.checked;
-      if (uiVals.fsdV) uiVals.fsdV.textContent = fsdEnabled ? "ON" : "OFF";
-      if (fsdEnabled) maybeStartFSD();
-      else stopFSD();
-    });
-    setFsdUI(false);
+  function applyFsdValue(target, value){
+    const el = ui[target.key];
+    const valEl = ui[target.key + "V"];
+    el.value = value.toFixed(2);
+    valEl.textContent = Number(el.value).toFixed(2);
+    // trigger underlying handlers
+    el.dispatchEvent(new Event("input"));
   }
 
-  ui.play.addEventListener("click", async () => {
+  function startFsd(){
+    fsdEnabled = true;
+    scheduleNextFsd();
+  }
+
+  function stopFsd(){
+    fsdEnabled = false;
+    if (fsdTask) cancelAnimationFrame(fsdTask);
+    fsdTask = null;
+  }
+
+  function scheduleNextFsd(){
+    if(!fsdEnabled || !isPlaying || !ac) return;
+
+    // pick random target
+    const t = fsdTargets[Math.floor(Math.random() * fsdTargets.length)];
+    let targetVal = Math.random(); // 0..1
+    targetVal = fsdQuantizeDeadzone(targetVal);
+
+    const startVal = parseFloat(ui[t.key].value);
+    const endVal = targetVal;
+
+    const startAt = nextLoopBoundaryTime();
+    const endAt = startAt + loopDur; // 4 bars
+
+    function step(){
+      if(!fsdEnabled || !isPlaying || !ac) return;
+      const now = ac.currentTime;
+      const u = clamp01((now - startAt) / (endAt - startAt));
+      const v = startVal + (endVal - startVal) * u;
+      applyFsdValue(t, v);
+      if (u >= 1){
+        setTimeout(scheduleNextFsd, 0);
+        return;
+      }
+      fsdTask = requestAnimationFrame(step);
+    }
+    fsdTask = requestAnimationFrame(step);
+  }
+
+  // ===== UI WIRING =====
+  function bindSlider(sl, out, fn){
+    const upd = () => {
+      out.textContent = Number(sl.value).toFixed(2);
+      fn(Number(sl.value));
+    };
+    sl.addEventListener("input", upd);
+    upd();
+  }
+
+  bindSlider(ui.trackVol, ui.trackVolV, (v)=>{ if(master) master.gain.setValueAtTime(v, ac?.currentTime || 0); });
+  bindSlider(ui.variety, ui.varietyV, (_)=>{});
+  bindSlider(ui.rainVol, ui.rainVolV, (v)=>{
+    if (fxSources.rain && fxSources.rain.__gain) fxSources.rain.__gain.gain.setValueAtTime(v, ac.currentTime);
+  });
+  bindSlider(ui.convVol, ui.convVolV, (v)=>{
+    if (fxSources.conv && fxSources.conv.__gain) fxSources.conv.__gain.gain.setValueAtTime(v, ac.currentTime);
+  });
+  bindSlider(ui.vinylVol, ui.vinylVolV, (v)=>{
+    if (fxSources.vinyl && fxSources.vinyl.__gain) fxSources.vinyl.__gain.gain.setValueAtTime(v, ac.currentTime);
+  });
+
+  bindSlider(ui.muffle, ui.muffleV, (v)=>{
+    if(!muffleLP) return;
+    const hz = 18000 - v * 16500;
+    muffleLP.frequency.setValueAtTime(hz, ac?.currentTime || 0);
+  });
+
+  bindSlider(ui.wobble, ui.wobbleV, (v)=>{
+    if(!wobbleGain || !wobbleLFO) return;
+    // depth 0..0.15
+    const depth = v * 0.15;
+    // wobbleDepth is embedded; easiest: scale wobbleGain range by setting gain offset
+    wobbleGain.gain.setValueAtTime(1 - depth, ac?.currentTime || 0);
+  });
+
+  bindSlider(ui.glow, ui.glowV, (_)=>{});
+  bindSlider(ui.vignette, ui.vignetteV, (_)=>{});
+
+  ui.play.addEventListener("click", async ()=>{
     try{
-      await ensureAudio();
+      ensureAudio();
       if(ac.state === "suspended") await ac.resume();
       await loadPack(currentPack);
       startAll();
-      updateAudioFromUI();
-    }catch(err){
-      setStatus("Error: " + err.message);
-      console.error(err);
+      if (ui.fsd.checked) startFsd();
+    }catch(e){
+      setStatus("Error: " + e.message);
     }
   });
 
-  ui.pause.addEventListener("click", async () => {
-    if(!ac) return;
-    stopArranger();
+  ui.pause.addEventListener("click", ()=>{
     stopAll();
-    setStatus("Stopped.");
+    stopFsd();
   });
 
-  ui.shuffle.addEventListener("click", shuffleNow);
-
-  // Scenes (animated placeholders)
-  const sceneCanvas = $("scene");
-  const sctx = sceneCanvas.getContext("2d");
-
-  function resizeCanvasToCSS(c){
-    const r = c.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    c.width = Math.floor(r.width * dpr);
-    c.height = Math.floor(r.height * dpr);
-  }
-  window.addEventListener("resize", () => resizeCanvasToCSS(sceneCanvas));
-  let sceneMode = "loaf";
-
-  function setScene(mode){
-    sceneMode = mode;
-    setActiveSceneButton(mode);
-
-    const btn = sceneButtons.find(b => b.dataset.scene === mode);
-    const videoSrc = btn?.dataset.video;
-
-    if(videoSrc){
-      const currentSrc = sceneVideo.getAttribute("src") || "";
-      if(currentSrc !== videoSrc){
-        sceneVideo.src = videoSrc;
-        sceneVideo.load();
-      }
-      sceneVideo.style.display = "block";
-      sceneVideo.play().catch(() => {});
-    } else {
-      sceneVideo.pause();
-      sceneVideo.removeAttribute("src");
-      sceneVideo.load();
-      sceneVideo.style.display = "none";
-    }
-  }
-
-  sceneButtons.forEach(btn => {
-    btn.addEventListener("click", () => setScene(btn.dataset.scene));
+  ui.shuffle.addEventListener("click", ()=>{
+    if(!isPlaying) return;
+    const v = Math.max(parseFloat(ui.variety.value), 0.85);
+    shuffleWithIntensity(v);
+    setStatus(`Shuffle: strong mask+variation (${v.toFixed(2)}) queued.`);
+    updateDebug("shuffle");
   });
 
-  setScene(sceneMode);
-
-  let t = 0;
-  function drawScene(){
-    resizeCanvasToCSS(sceneCanvas);
-    const w = sceneCanvas.width, h = sceneCanvas.height;
-    t += 0.016;
-
-    const glow = parseFloat(ui.glow.value);
-    const vign = parseFloat(ui.vignette.value);
-    const rainAmt = parseFloat(ui.rainVol.value);
-    const rainOverlay = parseFloat(ui.rainOverlay.value || 1);
-    const ripple = parseFloat(ui.ripple.value || 1);
-
-    const hasVideo = !!sceneVideo?.src;
-
-    sctx.clearRect(0,0,w,h);
-
-    if(!hasVideo){
-      sctx.fillStyle = "#02040a";
-      sctx.fillRect(0,0,w,h);
-
-      sctx.globalAlpha = 0.10 + glow * 0.18;
-      if(sceneMode === "loaf") sctx.fillStyle = "#1b5cff";
-      if(sceneMode === "hello") sctx.fillStyle = "#b06bff";
-      if(sceneMode === "undersea") sctx.fillStyle = "#35ffb2";
-      sctx.fillRect(0,0,w,h);
-      sctx.globalAlpha = 1;
-    }
-
-    const drops = Math.floor(120 * (0.2 + rainAmt));
-    sctx.strokeStyle = `rgba(200,240,255,${0.22 * rainOverlay})`;
-    sctx.lineWidth = 1;
-    if (rainOverlay > 0) {
-      for(let i=0;i<drops;i++){
-        const x = (Math.sin(i*12.31 + t*0.6) * 0.5 + 0.5) * w;
-        const y = ((i*97 + t*260) % (h+200)) - 200;
-        const len = 30 + rainAmt*50;
-        sctx.beginPath();
-        sctx.moveTo(x,y);
-        sctx.lineTo(x+8,y+len);
-        sctx.stroke();
+  packButtons.forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const name = btn.dataset.pack;
+      setPackActive(name);
+      if(!ac) return;
+      if(ac.state === "suspended") await ac.resume();
+      await loadPack(currentPack);
+      if(isPlaying){
+        stopAll();
+        startAll();
       }
-    }
+    });
+  });
 
-    if(ripple > 0){
-      const rippleAlpha = 0.12 * ripple;
-      sctx.fillStyle = `rgba(200,240,255,${rippleAlpha})`;
-      for(let i=0;i<8;i++){
-        const x = (w * ((i*0.13 + t*0.03) % 1));
-        const y = h*0.35 + Math.sin(t*0.7 + i)*h*0.12;
-        sctx.beginPath();
-        sctx.ellipse(x,y, 14, 6, 0, 0, Math.PI*2);
-        sctx.fill();
+  sceneButtons.forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      setSceneActive(btn.dataset.scene);
+      const v = ui.sceneVideo;
+      const src = btn.dataset.video;
+      if(src){
+        v.src = src;
+        v.style.display = "block";
+        v.muted = true;
+        v.loop = true;
+        v.play().catch(()=>{});
       }
-    }
+    });
+  });
 
-    const vignetteAlpha = hasVideo ? (0.6 * vign) : (0.2 + 0.5 * vign);
-    sctx.globalAlpha = vignetteAlpha;
-    const grd = sctx.createRadialGradient(w*0.5,h*0.5, Math.min(w,h)*0.25, w*0.5,h*0.5, Math.max(w,h)*0.65);
-    grd.addColorStop(0, "rgba(0,0,0,0)");
-    grd.addColorStop(1, "rgba(0,0,0,1)");
-    sctx.fillStyle = grd;
-    sctx.fillRect(0,0,w,h);
-    sctx.globalAlpha = 1;
-
-    requestAnimationFrame(drawScene);
-  }
-  requestAnimationFrame(drawScene);
-
-  // Waveform
-  const waveCanvas = $("wave");
-  const wctx = waveCanvas.getContext("2d");
-  function drawWave(){
-    const w = waveCanvas.width, h = waveCanvas.height;
-    wctx.clearRect(0,0,w,h);
-    wctx.fillStyle = "rgba(103,217,255,0.12)";
-    wctx.fillRect(0,0,w,h);
-
-    if(analyser && data){
-      analyser.getByteTimeDomainData(data);
-      wctx.strokeStyle = "rgba(207,232,255,0.75)";
-      wctx.lineWidth = 2;
-      wctx.beginPath();
-      for(let i=0;i<data.length;i++){
-        const x = (i/(data.length-1))*w;
-        const v = (data[i]-128)/128;
-        const y = h/2 + v*(h*0.35);
-        if(i===0) wctx.moveTo(x,y);
-        else wctx.lineTo(x,y);
-      }
-      wctx.stroke();
+  ui.fsd.addEventListener("change", ()=>{
+    if(ui.fsd.checked){
+      if(isPlaying) startFsd();
     }else{
-      wctx.strokeStyle = "rgba(207,232,255,0.35)";
-      wctx.beginPath();
-      wctx.moveTo(0,h/2);
-      wctx.lineTo(w,h/2);
-      wctx.stroke();
+      stopFsd();
     }
+  });
+
+  // ===== ARRANGER TIMER =====
+  setInterval(()=>{
+    if(!isPlaying || !ac) return;
+    const now = ac.currentTime;
+    const elapsed = now - playStartTime;
+    const bars = Math.floor(elapsed / (loopDur/4));
+    if (bars > 0 && bars % (barsPerCheck*4) === 0){
+      arrangerTick();
+    }
+  }, 250);
+
+  // ===== WAVEFORM =====
+  const wctx = ui.wave.getContext("2d");
+  const wavePoints = new Array(240).fill(0);
+
+  function drawWave(){
+    const t = Date.now() / 1000;
+    // fake wave (placeholder): a slow squiggle so the UI isn't dead
+    for (let i=0;i<wavePoints.length;i++){
+      const x = i / wavePoints.length;
+      wavePoints[i] = 0.5 + 0.45 * Math.sin(t*0.8 + x*10) * (0.6 + 0.4*Math.sin(t*0.15));
+    }
+    wctx.clearRect(0,0,ui.wave.width, ui.wave.height);
+    wctx.beginPath();
+    for (let i=0;i<wavePoints.length;i++){
+      const x = (i/(wavePoints.length-1)) * ui.wave.width;
+      const y = (1 - wavePoints[i]) * ui.wave.height;
+      if(i===0) wctx.moveTo(x,y); else wctx.lineTo(x,y);
+    }
+    wctx.strokeStyle = "rgba(207,232,255,.75)";
+    wctx.lineWidth = 2;
+    wctx.stroke();
 
     requestAnimationFrame(drawWave);
   }
   requestAnimationFrame(drawWave);
 
-  // Debug panel refresh (lightweight)
-  if (debugEl){
-    setInterval(() => updateDebug(), 500);
-  }
-</script>
-<script>
-  // Register service worker for caching.
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js").then(() => {
-      setStatus("Caching enabled.");
-    }).catch((err) => {
-      console.warn("SW registration failed", err);
-    });
-  }
+  // Debug refresh (cheap): update twice per second
+  if (debugEl) setInterval(() => updateDebug(), 500);
+
+  // Start initial scene video (kept muted)
+  (function initScene(){
+    const first = sceneButtons[0];
+    if(!first) return;
+    setSceneActive(first.dataset.scene);
+    const v = ui.sceneVideo;
+    v.src = first.dataset.video;
+    v.style.display = "block";
+    v.muted = true;
+    v.loop = true;
+    v.play().catch(()=>{});
+  })();
 </script>
 </body>
 </html>
