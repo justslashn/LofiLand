@@ -201,8 +201,8 @@
 
           <h3>Vibe Pack</h3>
           <div class="btns" id="packButtons">
-            <button data-pack="deepfi" class="active">deep fi</button>
-            <button data-pack="spacehop">space-hop</button>
+            <button data-pack="spacehop" class="active">space-hop</button>
+            <button data-pack="deepfi">deep fi</button>
             <button data-pack="lofi">lofi</button>
           </div>
 
@@ -254,6 +254,11 @@
         <h3>Status</h3>
         <div class="hint" id="status">Idle.</div>
       </div>
+
+      <div class="panel" style="margin:14px;">
+        <h3>Debug</h3>
+        <pre class="hint" id="debug" style="margin:0; white-space:pre-wrap; word-break:break-word;">(not playing)</pre>
+      </div>
     </div>
 
     <div class="footer">
@@ -291,6 +296,7 @@
   const SHUFFLE_INTENSITY = 1.0;
 
   const statusEl = $("status");
+  const debugEl = $("debug");
   const sceneVideo = $("sceneVideo");
   const sceneButtons = Array.from(document.querySelectorAll("button[data-scene]"));
 
@@ -339,7 +345,7 @@
   let currentPack =
     packButtons.find(btn => btn.classList.contains("active"))?.dataset.pack ||
     packButtons[0]?.dataset.pack ||
-    "deepfi";
+    "spacehop";
 
   function bindValue(el, out){
     const sync = () => out.textContent = Number(el.value).toFixed(2);
@@ -423,6 +429,40 @@
 
   function setStatus(msg){ statusEl.textContent = msg; }
 
+  function fmt(n, d=3){
+    if (n === null || n === undefined || !isFinite(n)) return "—";
+    return Number(n).toFixed(d);
+  }
+
+  function updateDebug(reason=""){
+    if (!debugEl) return;
+    const lines = [];
+    lines.push(`pack: ${currentPack}${reason ? "  ("+reason+")" : ""}`);
+    lines.push(`playing: ${isPlaying}   ac: ${ac ? ac.state : "none"}   base: ${assetBase}`);
+    lines.push(`loopDur: ${fmt(loopDur,3)}s   bars/check: ${barsPerCheck}`);
+    if (ac && isPlaying){
+      lines.push(`t: now ${fmt(ac.currentTime,3)}   start ${fmt(playStartTime,3)}   nextBoundary ${fmt(nextLoopBoundaryTime(),3)}`);
+    }
+    lines.push("");
+    lines.push("stems:");
+    for (const s of STEMS){
+      const files = stemFiles?.[s] || [];
+      const active = !!arrangement?.[s];
+      const entry = stemActive?.[s];
+      const idx = entry?.variantIndex;
+      const name = (idx !== undefined && files[idx]) ? files[idx] : (idx !== undefined ? `#${idx}` : "—");
+      const started = entry?.src?._startTime;
+      const playing = !!entry?.src;
+      lines.push(`  ${s.padEnd(6)} ${active ? "ON " : "off"}  var=${idx===undefined?"—":idx}  file=${name}  src=${playing?"yes":"no"}  t0=${fmt(started,3)}`);
+    }
+    lines.push("");
+    lines.push("fx:");
+    lines.push(`  rain  vol=${ui.rainVol.value}  src=${fxSources?.rain ? "yes":"no"}`);
+    lines.push(`  conv  vol=${ui.convVol.value}  src=${fxSources?.conv ? "yes":"no"}`);
+    lines.push(`  vinyl vol=${ui.vinylVol.value}  src=${fxSources?.vinyl ? "yes":"no"}`);
+    debugEl.textContent = lines.join("\n");
+  }
+
   async function ensureAudio(){
     if(ac) return;
     ac = new (window.AudioContext || window.webkitAudioContext)();
@@ -462,6 +502,7 @@
     wobbleLFO.start();
 
     setStatus("Audio ready.");
+    updateDebug("audio ready");
   }
 
   async function fetchWithFallback(path, loader){
@@ -535,6 +576,7 @@
     }
 
     isPlaying = false;
+    updateDebug("stopped");
   }
 
   function nextLoopBoundaryTime(){
@@ -688,11 +730,13 @@
         const counts = STEMS.map(s => `${s}:${stemBuffers[s].length}`).join(", ");
         const sourceLabel = assetBase === LOCAL_ASSET_BASE ? "local" : "CDN";
         setStatus(`Loaded ${packName} (${sourceLabel}). Variants: ${counts}`);
+        updateDebug("pack loaded");
       });
     } else {
       const counts = STEMS.map(s => `${s}:${stemBuffers[s].length}`).join(", ");
       const sourceLabel = assetBase === LOCAL_ASSET_BASE ? "local" : "CDN";
       setStatus(`Loaded ${packName} (${sourceLabel}). Variants: ${counts}`);
+      updateDebug("pack loaded");
     }
   }
 
@@ -733,6 +777,7 @@
 
     isPlaying = true;
     setStatus("Playing.");
+    updateDebug("start");
 
     startArranger();
 
@@ -777,9 +822,8 @@
   function fsdQuantizeDeadzone(x){
     x = clamp01(x);
     if (x > 0 && x < 0.2) return 0;
-	return x;
-}
-
+    return x;
+  }
 
   function getBarDurationSec(){
     // Our loops are typically 4 bars; treat a "bar" as loopDur/4.
@@ -931,6 +975,7 @@
     const v = Math.max(parseFloat(ui.variety.value), SHUFFLE_INTENSITY);
     shuffleWithIntensity(v);
     setStatus(`Shuffle: strong mask+variation (${v.toFixed(2)}) queued.`);
+    updateDebug("shuffle");
   }
 
   function startArranger(){
@@ -956,6 +1001,7 @@
 
     shuffleWithIntensity(v);
     setStatus(`Variety: evolution tick (${v.toFixed(2)}) queued.`);
+    updateDebug("variety");
   }
 
   ["trackVol","rainVol","convVol","vinylVol","muffle","wobble","variety"].forEach(k => {
@@ -1141,6 +1187,11 @@
     requestAnimationFrame(drawWave);
   }
   requestAnimationFrame(drawWave);
+
+  // Debug panel refresh (lightweight)
+  if (debugEl){
+    setInterval(() => updateDebug(), 500);
+  }
 </script>
 <script>
   // Register service worker for caching.
