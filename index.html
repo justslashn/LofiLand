@@ -113,6 +113,7 @@
       font-size: 12px;
     }
     input[type="range"]{ width:100%; }
+    input[type="checkbox"]{ width:44px; height:24px; accent-color: rgba(103,217,255,.85); }
     .control .val{
       text-align:right;
       color: var(--muted);
@@ -227,20 +228,22 @@
           <h3>Vibe Mix</h3>
           <div class="grid">
             <div class="control"><div>Track</div><input id="trackVol" type="range" min="0" max="1" step="0.01" value="0.8"/><div class="val" id="trackVolV">0.80</div></div>
+
+            <div class="control"><div>Variety</div><input id="variety" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="varietyV">0.35</div></div>
+
             <div class="control"><div>Rain</div><input id="rainVol" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="rainVolV">0.00</div></div>
             <div class="control"><div>Conversation</div><input id="convVol" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="convVolV">0.00</div></div>
             <div class="control"><div>Vinyl</div><input id="vinylVol" type="range" min="0" max="1" step="0.01" value="0.20"/><div class="val" id="vinylVolV">0.20</div></div>
 
-            <div class="control"><div>Variety</div><input id="variety" type="range" min="0" max="1" step="0.01" value="0.35"/><div class="val" id="varietyV">0.35</div></div>
             <div class="control"><div>Muffle</div><input id="muffle" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="muffleV">0.00</div></div>
             <div class="control"><div>Wobble</div><input id="wobble" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="wobbleV">0.00</div></div>
-
             <h3 style="margin:10px 0 0 0;">CRT Controls</h3>
 
             <div class="control"><div>Glow</div><input id="glow" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="glowV">0.00</div></div>
             <div class="control"><div>Vignette</div><input id="vignette" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="vignetteV">0.00</div></div>
             <div class="control"><div>Rain</div><input id="rainOverlay" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="rainOverlayV">0.00</div></div>
             <div class="control"><div>Ripple</div><input id="ripple" type="range" min="0" max="1" step="0.01" value="0.00"/><div class="val" id="rippleV">0.00</div></div>
+            <div class="control"><div>Full Self-Dialing</div><input id="fsd" type="checkbox"/><div class="val" id="fsdV">OFF</div></div>
           </div>
         </div>
       </div>
@@ -313,7 +316,8 @@
     glow: $("glow"),
     vignette: $("vignette"),
     rainOverlay: $("rainOverlay"),
-    ripple: $("ripple")
+    ripple: $("ripple"),
+    fsd: $("fsd")
   };
 
   const uiVals = {
@@ -328,6 +332,7 @@
     vignetteV: $("vignetteV"),
     rainOverlayV: $("rainOverlayV"),
     rippleV: $("rippleV"),
+    fsdV: $("fsdV"),
   };
 
   const packButtons = Array.from(document.querySelectorAll("button[data-pack]"));
@@ -338,6 +343,7 @@
 
   function bindValue(el, out){
     const sync = () => out.textContent = Number(el.value).toFixed(2);
+    el._sync = sync;
     el.addEventListener("input", sync);
     sync();
   }
@@ -503,6 +509,7 @@
   }
 
   function stopAll(){
+    stopFSD();
     const now = ac ? ac.currentTime : 0;
     for (const k of Object.keys(fxSources)) {
       const src = fxSources[k];
@@ -728,6 +735,8 @@
     setStatus("Playing.");
 
     startArranger();
+
+    maybeStartFSD();
   }
 
   function updateAudioFromUI(){
@@ -745,6 +754,108 @@
     const w = parseFloat(ui.wobble.value);
     wobbleGain.gain.setTargetAtTime(w * 0.004, ac.currentTime, 0.05);
   }
+
+  // ===== Full Self-Dialing (FSD) =====
+  // FSD slowly "dials" one mix slider at a time over 4 bars, then moves on.
+  // Excludes: trackVol, variety, and all CRT controls.
+  const FSD_KEYS = ["rainVol","convVol","vinylVol","muffle","wobble"];
+  const FSD_LABEL = { rainVol:"Rain", convVol:"Conversation", vinylVol:"Vinyl", muffle:"Muffle", wobble:"Wobble" };
+
+  let fsdEnabled = false;
+  let fsdAnim = null;      // interval id
+  let fsdNextTimer = null; // timeout id
+  let fsdLastKey = null;
+
+  function setFsdUI(on){
+    if (!ui.fsd || !uiVals.fsdV) return;
+    ui.fsd.checked = !!on;
+    uiVals.fsdV.textContent = on ? "ON" : "OFF";
+  }
+
+  function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+
+  function fsdQuantizeDeadzone(x){
+    x = clamp01(x);
+    if (x > 0 && x < 0.2) return 0;
+	return x;
+}
+
+
+  function getBarDurationSec(){
+    // Our loops are typically 4 bars; treat a "bar" as loopDur/4.
+    if (loopDur && isFinite(loopDur) && loopDur > 0) return loopDur / 4;
+    return 2.0; // fallback
+  }
+
+  function setSliderValue(key, value){
+    const el = ui[key];
+    if (!el) return;
+    const v = clamp01(value);
+    el.value = v.toFixed(2);
+    if (typeof el._sync === "function") el._sync();
+    updateAudioFromUI();
+  }
+
+  function stopFSD(){
+    if (fsdAnim){ clearInterval(fsdAnim); fsdAnim = null; }
+    if (fsdNextTimer){ clearTimeout(fsdNextTimer); fsdNextTimer = null; }
+  }
+
+  function pickNextFsdKey(){
+    const keys = FSD_KEYS.filter(k => ui[k]);
+    if (keys.length === 0) return null;
+    if (keys.length === 1) return keys[0];
+
+    // Prefer "different from last" when possible
+    const pool = keys.filter(k => k !== fsdLastKey);
+    const arr = pool.length ? pool : keys;
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  function scheduleNextFsdDial(){
+    stopFSD();
+    if (!fsdEnabled || !isPlaying) return;
+
+    const key = pickNextFsdKey();
+    if (!key) return;
+
+    const start = parseFloat(ui[key].value) || 0;
+    const targetRaw = Math.random();
+    const target = fsdQuantizeDeadzone(targetRaw);
+
+    const barSec = getBarDurationSec();
+    const durationSec = barSec * 4; // 4 bars, per spec
+    const startMs = performance.now();
+    const durMs = Math.max(250, durationSec * 1000);
+
+    setStatus(`FSD: dialing ${FSD_LABEL[key]}…`);
+
+    fsdAnim = setInterval(() => {
+      const p = Math.min(1, (performance.now() - startMs) / durMs);
+      // Smooth-ish easing so it doesn't feel robotic
+      const eased = p * p * (3 - 2 * p);
+      const v = start + (target - start) * eased;
+      setSliderValue(key, v);
+
+      if (p >= 1){
+        clearInterval(fsdAnim);
+        fsdAnim = null;
+        fsdLastKey = key;
+
+        setStatus(`FSD: ${FSD_LABEL[key]} → ${target.toFixed(2)}`);
+
+        // short breather before choosing a new slider (half a bar)
+        const pauseMs = Math.max(120, barSec * 0.5 * 1000);
+        fsdNextTimer = setTimeout(scheduleNextFsdDial, pauseMs);
+      }
+    }, 50);
+  }
+
+  function maybeStartFSD(){
+    if (!fsdEnabled || !isPlaying) return;
+    scheduleNextFsdDial();
+  }
+  // ===== /FSD =====
 
   function existsStem(s){
     return (stemBuffers[s]?.length ?? 0) > 0;
@@ -853,6 +964,17 @@
       if (k === "variety" && isPlaying) startArranger();
     });
   });
+
+  // FSD toggle
+  if (ui.fsd){
+    ui.fsd.addEventListener("change", () => {
+      fsdEnabled = !!ui.fsd.checked;
+      if (uiVals.fsdV) uiVals.fsdV.textContent = fsdEnabled ? "ON" : "OFF";
+      if (fsdEnabled) maybeStartFSD();
+      else stopFSD();
+    });
+    setFsdUI(false);
+  }
 
   ui.play.addEventListener("click", async () => {
     try{
