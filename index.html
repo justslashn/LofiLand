@@ -200,9 +200,9 @@
 
           <h3>Vibe Pack</h3>
           <div class="btns" id="packButtons">
-            <button data-pack="lofi" class="active">lofi</button>
-            <button data-pack="deepfi">deep fi</button>
+            <button data-pack="deepfi" class="active">deep fi</button>
             <button data-pack="spacehop">space-hop</button>
+            <button data-pack="lofi">lofi</button>
           </div>
 
           <div class="transport">
@@ -288,7 +288,7 @@
   const SHUFFLE_INTENSITY = 1.0;
 
   const statusEl = $("status");
-const sceneVideo = $("sceneVideo");
+  const sceneVideo = $("sceneVideo");
   const sceneButtons = Array.from(document.querySelectorAll("button[data-scene]"));
 
   function setActiveSceneButton(name){
@@ -334,7 +334,7 @@ const sceneVideo = $("sceneVideo");
   let currentPack =
     packButtons.find(btn => btn.classList.contains("active"))?.dataset.pack ||
     packButtons[0]?.dataset.pack ||
-    "lofi";
+    "deepfi";
 
   function bindValue(el, out){
     const sync = () => out.textContent = Number(el.value).toFixed(2);
@@ -709,9 +709,12 @@ const sceneVideo = $("sceneVideo");
       stemChannelGain[s] = g;
     }
 
+    // Randomize starting variants so first play doesn't always sound the same
     for (const s of STEMS) {
       if (!stemChannelGain[s]) continue;
-      startStem(s, 0, t0, 0.08);
+      const n = stemBuffers[s]?.length ?? 0;
+      const startIdx = n > 0 ? Math.floor(Math.random() * n) : 0;
+      startStem(s, startIdx, t0, 0.08);
     }
 
     fxSources.rain  = makeLoopSource(fxBuffers.rain, fxRain, t0);
@@ -888,7 +891,7 @@ const sceneVideo = $("sceneVideo");
 
   function setScene(mode){
     sceneMode = mode;
-setActiveSceneButton(mode);
+    setActiveSceneButton(mode);
 
     const btn = sceneButtons.find(b => b.dataset.scene === mode);
     const videoSrc = btn?.dataset.video;
