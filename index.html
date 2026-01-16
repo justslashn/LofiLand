@@ -186,7 +186,7 @@
       </div>
 
       <div class="wave">
-        <canvas id="wave" width="1200" height="90"></canvas>
+        <canvas id="wave"></canvas>
       </div>
 
       <div class="row">
@@ -312,20 +312,23 @@
     statusEl.textContent = msg;
   }
 
+  // ===== Debug source tracking (non-invasive) =====
+  let stemSources = { drums: [], bass: [], chords: [], melody: [] };
+  let fxSourcesList = { rain: [], conv: [], vinyl: [] };
+  let _srcId = 1;
+
   function _registerSource(listObj, key, src, gainNode){
     if(!src) return;
     const id = _srcId++;
     src.__id = id;
+    src.__gainNode = gainNode || null;
     if (!listObj[key]) listObj[key] = [];
-    listObj[key].push({ id, src, gainNode });
-    src.addEventListener?.("ended", () => _unregisterSource(listObj, key, id));
-    src.onended = (() => {
-      const prev = src.onended;
-      return function(){
-        try { _unregisterSource(listObj, key, id); } catch {}
-        try { if (typeof prev === "function") prev(); } catch {}
-      };
-    })();
+    listObj[key].push({ id, src, gainNode: gainNode || null });
+
+    // Do NOT touch src.onended; just listen.
+    if (src.addEventListener) {
+      src.addEventListener("ended", () => _unregisterSource(listObj, key, id), { once:true });
+    }
   }
 
   function _unregisterSource(listObj, key, id){
@@ -414,22 +417,21 @@
 
   let isPlaying = false;
   let playStartTime = 0;
-  let loopDur = 16; // seconds for 4 bars @ 60 bpm (placeholder until computed)
+  let loopDur = 16;
   let barsPerCheck = 4;
 
   let arrangement = { drums:true, bass:true, chords:true, melody:true };
   let stemVarIndex = { drums:0, bass:0, chords:0, melody:0 };
   let stemActive = {};
 
-  // Debug tracking: keep a list of *all* active sources per stem so we can spot overlaps.
-  let stemSources = { drums: [], bass: [], chords: [], melody: [] };
-  let fxSourcesList = { rain: [], conv: [], vinyl: [] };
-  let _srcId = 1;
-
   // ===== FX NODES =====
   let muffleLP = null;
   let wobbleLFO = null;
   let wobbleGain = null;
+
+  // ===== Waveform (real analyser) =====
+  let analyser = null;
+  let analyserData = null;
 
   // ===== SELF DIALING =====
   let fsdEnabled = false;
@@ -466,15 +468,13 @@
   }
 
   function computeLoopDurFromBpm(bpm){
-    // 4 bars @ 4/4 = 16 beats
     return (60 / bpm) * 16;
   }
 
   function packBpm(pack){
-    // keep this simple; you’ve documented BPMs above too
     if(pack === "spacehop") return 110;
     if(pack === "deepfi") return 80;
-    return 80; // lofi
+    return 80;
   }
 
   function nextLoopBoundaryTime(){
@@ -499,16 +499,25 @@
     return src;
   }
 
-  function stopSourceAt(src, t){
-    try{ src.stop(t); }catch{}
+  function safeStop(src, gainNode, stopTime){
+    if(!ac || !src) return;
+    const now = ac.currentTime;
+    const tStop = Math.max(stopTime ?? now, now + 0.02);
+
+    // Ensure inaudible even if stop throws
+    if(gainNode && gainNode.gain){
+      try{
+        gainNode.gain.cancelScheduledValues(now);
+        gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.02);
+      }catch{}
+    }
+
+    try{ src.stop(tStop); }catch{}
   }
 
   function hardMute(){
-    if(master) master.gain.setValueAtTime(0, ac.currentTime);
-  }
-
-  function unmuteTo(v=1){
-    if(master) master.gain.setValueAtTime(v, ac.currentTime);
+    if(master && ac) master.gain.setValueAtTime(0, ac.currentTime);
   }
 
   // ===== LOAD PACK =====
@@ -538,7 +547,6 @@
 
     reportStatus("Loading stems");
 
-    // Load stems
     for (const s of STEMS){
       stemBuffers[s] = [];
       for (let i=0;i<stemFiles[s].length;i++){
@@ -552,7 +560,6 @@
       }
     }
 
-    // Load FX buffers listed in manifest.fx (optional)
     fxBuffers = {};
     const fxList = (manifest && manifest.fx) ? manifest.fx : {};
     const fxNames = Object.keys(fxList);
@@ -577,7 +584,15 @@
 
     master = ac.createGain();
     master.gain.value = parseFloat(ui.trackVol.value);
-    master.connect(ac.destination);
+
+    // Analyser for waveform (tap just before destination)
+    analyser = ac.createAnalyser();
+    analyser.fftSize = 2048;
+    analyserData = new Uint8Array(analyser.fftSize);
+
+    // Destination routing: master -> analyser -> destination
+    master.connect(analyser);
+    analyser.connect(ac.destination);
 
     // Muffle (lowpass)
     muffleLP = ac.createBiquadFilter();
@@ -585,7 +600,7 @@
     muffleLP.frequency.value = 18000;
     muffleLP.Q.value = 0.707;
 
-    // Wobble (simple gain modulation on master)
+    // Wobble (simple gain modulation)
     wobbleGain = ac.createGain();
     wobbleGain.gain.value = 1;
 
@@ -602,7 +617,6 @@
     muffleLP.connect(wobbleGain);
     wobbleGain.connect(master);
 
-    // Create stem channel gains and connect to muffle
     stemChannelGain = {};
     for (const s of STEMS){
       const g = ac.createGain();
@@ -610,21 +624,15 @@
       g.connect(muffleLP);
       stemChannelGain[s] = g;
     }
-
-    // FX gains: connect directly to master (not affected by muffle/wobble)
-    // We'll create these as needed in startAll.
   }
 
   // ===== START/STOP =====
   function randomizeInitialArrangement(){
-    // ensure at least 1 stays same across transitions doesn’t apply here; this is initial seeding.
-    // keep drums on; randomly toggle others with a gentle bias toward ON.
     arrangement.drums = true;
     arrangement.bass = Math.random() < 0.85;
     arrangement.chords = Math.random() < 0.85;
     arrangement.melody = Math.random() < 0.80;
 
-    // random variants (if available)
     for (const s of STEMS){
       const n = (stemBuffers[s] || []).length;
       stemVarIndex[s] = n ? Math.floor(Math.random() * n) : 0;
@@ -644,30 +652,31 @@
     playStartTime = t0;
     isPlaying = true;
 
-    // Master volume
     master.gain.setValueAtTime(parseFloat(ui.trackVol.value), ac.currentTime);
 
-    // FX gains
+    // FX gains (and retain for slider control)
     const fxRain  = ac.createGain(); fxRain.gain.value  = parseFloat(ui.rainVol.value);  fxRain.connect(master);
     const fxConv  = ac.createGain(); fxConv.gain.value  = parseFloat(ui.convVol.value);  fxConv.connect(master);
     const fxVinyl = ac.createGain(); fxVinyl.gain.value = parseFloat(ui.vinylVol.value); fxVinyl.connect(master);
 
-    // Start FX if available
     fxSources = { rain:null, conv:null, vinyl:null };
+
     if (fxBuffers.rain){
-      fxSources.rain  = makeLoopSource(fxBuffers.rain, fxRain, t0);
+      fxSources.rain = makeLoopSource(fxBuffers.rain, fxRain, t0);
+      fxSources.rain.__gain = fxRain;
       _registerSource(fxSourcesList, "rain", fxSources.rain, null);
     }
     if (fxBuffers.conv){
-      fxSources.conv  = makeLoopSource(fxBuffers.conv, fxConv, t0);
+      fxSources.conv = makeLoopSource(fxBuffers.conv, fxConv, t0);
+      fxSources.conv.__gain = fxConv;
       _registerSource(fxSourcesList, "conv", fxSources.conv, null);
     }
     if (fxBuffers.vinyl){
       fxSources.vinyl = makeLoopSource(fxBuffers.vinyl, fxVinyl, t0);
+      fxSources.vinyl.__gain = fxVinyl;
       _registerSource(fxSourcesList, "vinyl", fxSources.vinyl, null);
     }
 
-    // Start stems
     stemActive = {};
     for (const s of STEMS){
       if(!arrangement[s]) {
@@ -685,27 +694,22 @@
 
   function stopAll(){
     if(!ac) return;
-    if(!isPlaying){
-      hardMute();
-      setStatus("Stopped.");
-      updateDebug("stopped");
-      return;
-    }
-
-    const t = ac.currentTime + 0.01;
 
     hardMute();
+    const t = ac.currentTime + 0.03;
 
-    // Stop stems
+    // Stop ALL tracked sources (not just the latest)
     for (const s of STEMS){
-      const obj = stemActive[s];
-      if(obj && obj.src) stopSourceAt(obj.src, t);
+      const list = stemSources[s] || [];
+      for (const item of list){
+        safeStop(item.src, item.gainNode, t);
+      }
     }
-
-    // Stop FX
     for (const k of ["rain","conv","vinyl"]){
-      const src = fxSources[k];
-      if(src) stopSourceAt(src, t);
+      const list = fxSourcesList[k] || [];
+      for (const item of list){
+        safeStop(item.src, null, t);
+      }
     }
 
     isPlaying = false;
@@ -739,22 +743,25 @@
 
     if(old && old.src){
       const fade = 0.08;
+
+      // Fade new in
       g.gain.setValueAtTime(0, when);
       g.gain.linearRampToValueAtTime(1, when + fade);
 
+      // Fade old out (and then stop safely)
       if(old.gainNode){
-        old.gainNode.gain.cancelScheduledValues(when);
-        old.gainNode.gain.setValueAtTime(old.gainNode.gain.value, when);
-        old.gainNode.gain.linearRampToValueAtTime(0, when + fade);
+        try{
+          old.gainNode.gain.cancelScheduledValues(when);
+          old.gainNode.gain.setValueAtTime(old.gainNode.gain.value, when);
+          old.gainNode.gain.linearRampToValueAtTime(0, when + fade);
+        }catch{}
       }
-      stopSourceAt(old.src, when + fade + 0.02);
+      safeStop(old.src, old.gainNode || null, when + fade + 0.02);
     }
   }
 
   // ===== SHUFFLE / EVOLUTION =====
   function chooseStemsToChange(v){
-    // v in [0..1], choose 1..3 but never 4; also keep at least 1 unchanged.
-    // Bias: melody > chords > bass > drums
     const weighted = [
       { s:"melody", w: 0.45 },
       { s:"chords", w: 0.30 },
@@ -784,7 +791,6 @@
   }
 
   function queueChanges(changes, boundaryTime){
-    // changes: {stem: {variantIndex, on:boolean}}; apply at boundaryTime
     for (const s of STEMS){
       if(!(s in changes)) continue;
       const ch = changes[s];
@@ -805,9 +811,6 @@
 
   function shuffleWithIntensity(v){
     const stemsToChange = chooseStemsToChange(v);
-
-    // At least one stem must remain unchanged; chooseStemsToChange never returns 4.
-    // Keep at least 3 stems ON (never mute more than 1). If we pick a mute, clamp.
     const boundary = safeBoundaryTime(0);
 
     const changes = {};
@@ -817,7 +820,6 @@
 
       const newVar = Math.floor(Math.random() * files.length);
 
-      // Optional mask: small chance to toggle off at high intensity, but keep it gentle
       let on = true;
       const offProb = Math.min(0.12, 0.35 * v);
       if (Math.random() < offProb) on = false;
@@ -825,14 +827,12 @@
       changes[s] = { variantIndex: newVar, on };
     }
 
-    // Enforce: at least 3 stems ON
     const nextArrangement = { ...arrangement };
     for (const s of STEMS){
       if (changes[s]) nextArrangement[s] = !!changes[s].on;
     }
     const onCount = STEMS.filter(s => nextArrangement[s]).length;
     if (onCount < 3){
-      // force one muted stem back on
       const muted = STEMS.filter(s => !nextArrangement[s]);
       if (muted.length){
         const fix = muted[Math.floor(Math.random()*muted.length)];
@@ -857,7 +857,6 @@
       const files = stemBuffers[s] || [];
       if(!files.length) continue;
 
-      // Small probability of keeping same variant
       let newVar = stemVarIndex[s] || 0;
       if (Math.random() < (0.25 + 0.4*v)){
         newVar = Math.floor(Math.random() * files.length);
@@ -871,6 +870,9 @@
   }
 
   // ===== FSD =====
+  let fsdEnabled = false;
+  let fsdTask = null;
+
   const fsdTargets = [
     { id: "rainVol",   key: "rainVol",   label:"Rain" },
     { id: "convVol",   key: "convVol",   label:"Conversation" },
@@ -884,7 +886,6 @@
     const valEl = ui[target.key + "V"];
     el.value = value.toFixed(2);
     valEl.textContent = Number(el.value).toFixed(2);
-    // trigger underlying handlers
     el.dispatchEvent(new Event("input"));
   }
 
@@ -902,16 +903,15 @@
   function scheduleNextFsd(){
     if(!fsdEnabled || !isPlaying || !ac) return;
 
-    // pick random target
     const t = fsdTargets[Math.floor(Math.random() * fsdTargets.length)];
-    let targetVal = Math.random(); // 0..1
+    let targetVal = Math.random();
     targetVal = fsdQuantizeDeadzone(targetVal);
 
     const startVal = parseFloat(ui[t.key].value);
     const endVal = targetVal;
 
     const startAt = nextLoopBoundaryTime();
-    const endAt = startAt + loopDur; // 4 bars
+    const endAt = startAt + loopDur;
 
     function step(){
       if(!fsdEnabled || !isPlaying || !ac) return;
@@ -938,30 +938,29 @@
     upd();
   }
 
-  bindSlider(ui.trackVol, ui.trackVolV, (v)=>{ if(master) master.gain.setValueAtTime(v, ac?.currentTime || 0); });
+  bindSlider(ui.trackVol, ui.trackVolV, (v)=>{ if(master && ac) master.gain.setValueAtTime(v, ac.currentTime); });
   bindSlider(ui.variety, ui.varietyV, (_)=>{});
+
   bindSlider(ui.rainVol, ui.rainVolV, (v)=>{
-    if (fxSources.rain && fxSources.rain.__gain) fxSources.rain.__gain.gain.setValueAtTime(v, ac.currentTime);
+    if (fxSources.rain && fxSources.rain.__gain && ac) fxSources.rain.__gain.gain.setValueAtTime(v, ac.currentTime);
   });
   bindSlider(ui.convVol, ui.convVolV, (v)=>{
-    if (fxSources.conv && fxSources.conv.__gain) fxSources.conv.__gain.gain.setValueAtTime(v, ac.currentTime);
+    if (fxSources.conv && fxSources.conv.__gain && ac) fxSources.conv.__gain.gain.setValueAtTime(v, ac.currentTime);
   });
   bindSlider(ui.vinylVol, ui.vinylVolV, (v)=>{
-    if (fxSources.vinyl && fxSources.vinyl.__gain) fxSources.vinyl.__gain.gain.setValueAtTime(v, ac.currentTime);
+    if (fxSources.vinyl && fxSources.vinyl.__gain && ac) fxSources.vinyl.__gain.gain.setValueAtTime(v, ac.currentTime);
   });
 
   bindSlider(ui.muffle, ui.muffleV, (v)=>{
-    if(!muffleLP) return;
+    if(!muffleLP || !ac) return;
     const hz = 18000 - v * 16500;
-    muffleLP.frequency.setValueAtTime(hz, ac?.currentTime || 0);
+    muffleLP.frequency.setValueAtTime(hz, ac.currentTime);
   });
 
   bindSlider(ui.wobble, ui.wobbleV, (v)=>{
-    if(!wobbleGain || !wobbleLFO) return;
-    // depth 0..0.15
+    if(!wobbleGain || !ac) return;
     const depth = v * 0.15;
-    // wobbleDepth is embedded; easiest: scale wobbleGain range by setting gain offset
-    wobbleGain.gain.setValueAtTime(1 - depth, ac?.currentTime || 0);
+    wobbleGain.gain.setValueAtTime(1 - depth, ac.currentTime);
   });
 
   bindSlider(ui.glow, ui.glowV, (_)=>{});
@@ -1040,36 +1039,64 @@
     }
   }, 250);
 
-  // ===== WAVEFORM =====
+  // ===== WAVEFORM (resizable + real) =====
   const wctx = ui.wave.getContext("2d");
-  const wavePoints = new Array(240).fill(0);
+
+  function resizeWaveCanvas(){
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const rect = ui.wave.getBoundingClientRect();
+    const w = Math.max(1, Math.floor(rect.width * dpr));
+    const h = Math.max(1, Math.floor(rect.height * dpr));
+    if(ui.wave.width !== w || ui.wave.height !== h){
+      ui.wave.width = w;
+      ui.wave.height = h;
+    }
+  }
+  window.addEventListener("resize", resizeWaveCanvas);
+  resizeWaveCanvas();
 
   function drawWave(){
-    const t = Date.now() / 1000;
-    // fake wave (placeholder): a slow squiggle so the UI isn't dead
-    for (let i=0;i<wavePoints.length;i++){
-      const x = i / wavePoints.length;
-      wavePoints[i] = 0.5 + 0.45 * Math.sin(t*0.8 + x*10) * (0.6 + 0.4*Math.sin(t*0.15));
+    resizeWaveCanvas();
+    const W = ui.wave.width, H = ui.wave.height;
+
+    wctx.clearRect(0,0,W,H);
+
+    // If analyser exists and we're playing, show real time-domain waveform.
+    if(analyser && analyserData && isPlaying){
+      analyser.getByteTimeDomainData(analyserData);
+
+      wctx.beginPath();
+      for(let i=0;i<analyserData.length;i++){
+        const x = (i/(analyserData.length-1))*W;
+        const v = analyserData[i] / 255;       // 0..1
+        const y = (1 - v) * H;                 // invert
+        if(i===0) wctx.moveTo(x,y); else wctx.lineTo(x,y);
+      }
+      wctx.strokeStyle = "rgba(207,232,255,.75)";
+      wctx.lineWidth = Math.max(1, Math.floor(H/45));
+      wctx.stroke();
+    }else{
+      // Idle waveform: simple calm line so UI isn't dead.
+      const t = Date.now() / 1000;
+      wctx.beginPath();
+      for (let i=0;i<240;i++){
+        const x = (i/239)*W;
+        const y = (0.5 - 0.18*Math.sin(t*0.6 + i*0.08)) * H;
+        if(i===0) wctx.moveTo(x,y); else wctx.lineTo(x,y);
+      }
+      wctx.strokeStyle = "rgba(207,232,255,.55)";
+      wctx.lineWidth = Math.max(1, Math.floor(H/55));
+      wctx.stroke();
     }
-    wctx.clearRect(0,0,ui.wave.width, ui.wave.height);
-    wctx.beginPath();
-    for (let i=0;i<wavePoints.length;i++){
-      const x = (i/(wavePoints.length-1)) * ui.wave.width;
-      const y = (1 - wavePoints[i]) * ui.wave.height;
-      if(i===0) wctx.moveTo(x,y); else wctx.lineTo(x,y);
-    }
-    wctx.strokeStyle = "rgba(207,232,255,.75)";
-    wctx.lineWidth = 2;
-    wctx.stroke();
 
     requestAnimationFrame(drawWave);
   }
   requestAnimationFrame(drawWave);
 
-  // Debug refresh (cheap): update twice per second
+  // Debug refresh (cheap)
   if (debugEl) setInterval(() => updateDebug(), 500);
 
-  // Start initial scene video (kept muted)
+  // Start initial scene video
   (function initScene(){
     const first = sceneButtons[0];
     if(!first) return;
